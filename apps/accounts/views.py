@@ -1,6 +1,9 @@
 from django.contrib.auth import login
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.views.generic import CreateView
+from django.views.generic import CreateView, ListView
+
+from apps.magazines.models import Purchase
 
 from .forms import CustomSignupForm
 
@@ -21,3 +24,30 @@ class SignupView(CreateView):
         response = super().form_valid(form)
         login(self.request, self.object)
         return response
+
+
+class LibraryView(LoginRequiredMixin, ListView):
+    """The signed-in user's purchased issues.
+
+    Queries Purchase (not Issue) and select_relates the joined Issue +
+    Category in a single round-trip. This lets the template surface
+    purchase-time metadata (date, amount paid) alongside the cover --
+    information that would be lost if we filtered Issues directly.
+
+    Access control is enforced two ways:
+      1. LoginRequiredMixin -> anonymous users get 302'd to LOGIN_URL.
+      2. .filter(user=self.request.user) -> the queryset can only ever
+         contain the requesting user's own purchases. No risk of leaking
+         someone else's library through a tampered URL parameter.
+    """
+
+    template_name = "accounts/library.html"
+    context_object_name = "purchases"
+    paginate_by = 12
+
+    def get_queryset(self):
+        return (
+            Purchase.objects.filter(user=self.request.user)
+            .select_related("issue", "issue__category")
+            .order_by("-purchase_date")
+        )
