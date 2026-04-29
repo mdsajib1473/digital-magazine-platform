@@ -1,0 +1,38 @@
+{% extends "registration/_auth_card.html" %}
+
+{% block title %}Sign in &middot; Unmad Digital Archive{% endblock %}
+
+{% block auth_title %}Welcome back{% endblock %}
+{% block auth_subtitle %}Sign in to access your purchased issues.{% endblock %}
+
+{% block auth_form %}
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% include "registration/_form_field.html" with field=form.username %}
+        {% include "registration/_form_field.html" with field=form.password %}
+
+        {# Hidden ?next= passthrough so @login_required redirects work. #}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+        <button type="submit"
+                class="w-full mt-2 inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">
+            Sign in
+        </button>
+    </form>
+{% endblock %}
+
+{% block auth_alt_action %}
+    Don&rsquo;t have an account?
+    <a href="{% url 'signup' %}" class="font-semibold text-indigo-600 hover:text-indigo-500">
+        Create one
+    </a>
+{% endblock %}

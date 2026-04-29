@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% comment %}
+Shared card scaffold for login + signup pages.
+
+Children must provide these blocks:
+  - auth_title          : main heading text
+  - auth_subtitle       : one-line subtitle below the heading
+  - auth_form           : the actual <form> element + submit button
+  - auth_alt_action     : link offering the *other* action ("Need an account?" etc.)
+{% endcomment %}
+
+{% block content %}
+<div class="min-h-[60vh] flex items-center justify-center py-10">
+    <div class="w-full max-w-md">
+
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 sm:p-10">
+            <div class="text-center mb-7">
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+                    {% block auth_title %}{% endblock %}
+                </h1>
+                <p class="mt-2 text-sm text-slate-500">
+                    {% block auth_subtitle %}{% endblock %}
+                </p>
+            </div>
+
+            {% block auth_form %}{% endblock %}
+        </div>
+
+        <p class="mt-6 text-center text-sm text-slate-600">
+            {% block auth_alt_action %}{% endblock %}
+        </p>
+
+    </div>
+</div>
+{% endblock %}

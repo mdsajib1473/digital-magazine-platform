@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from core.storages import private_media_storage, public_media_storage
+
 
 class Category(models.Model):
     """A grouping for magazine issues (e.g. Monthly, Special, Annual)."""
@@ -21,8 +23,19 @@ class Issue(models.Model):
 
     title = models.CharField(max_length=200)
     issue_number = models.PositiveIntegerField()
-    cover_image = models.ImageField(upload_to="covers/")
-    pdf_file = models.FileField(upload_to="pdfs/")
+    cover_image = models.ImageField(
+        upload_to="covers/",
+        storage=public_media_storage,
+        help_text="Cover photo. Stored in the public bucket; URL is public + cacheable.",
+    )
+    pdf_file = models.FileField(
+        upload_to="pdfs/",
+        storage=private_media_storage,
+        help_text=(
+            "PDF of the issue. Stored in the private bucket; .url generates a "
+            "short-lived signed URL. Never expose the raw key to anonymous users."
+        ),
+    )
     category = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -60,6 +73,12 @@ class Purchase(models.Model):
         "Issue",
         on_delete=models.PROTECT,
         related_name="purchases",
+    )
+    amount_paid = models.PositiveIntegerField(
+        help_text=(
+            "BDT amount actually paid, snapshotted at purchase time. "
+            "Independent of future Issue.price changes — preserves audit trail."
+        ),
     )
     purchase_date = models.DateTimeField(auto_now_add=True)
 

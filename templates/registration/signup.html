@@ -1,0 +1,42 @@
+{% extends "registration/_auth_card.html" %}
+
+{% block title %}Create account &middot; Unmad Digital Archive{% endblock %}
+
+{% block auth_title %}Create your account{% endblock %}
+{% block auth_subtitle %}A free account lets you buy and read issues.{% endblock %}
+
+{% block auth_form %}
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% include "registration/_form_field.html" with field=form.username %}
+        {% include "registration/_form_field.html" with field=form.email %}
+        {% include "registration/_form_field.html" with field=form.phone_number %}
+        {% include "registration/_form_field.html" with field=form.password1 %}
+        {% include "registration/_form_field.html" with field=form.password2 %}
+
+        <button type="submit"
+                class="w-full mt-2 inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">
+            Create account
+        </button>
+
+        <p class="mt-4 text-xs text-slate-500 text-center">
+            By signing up you agree to be a delightful human.
+        </p>
+    </form>
+{% endblock %}
+
+{% block auth_alt_action %}
+    Already have an account?
+    <a href="{% url 'login' %}" class="font-semibold text-indigo-600 hover:text-indigo-500">
+        Sign in
+    </a>
+{% endblock %}

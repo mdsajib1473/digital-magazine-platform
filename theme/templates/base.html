@@ -1,0 +1,66 @@
+{% load static tailwind_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Unmad Digital Archive{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Digital archive of Unmad Magazine — browse and read every issue.{% endblock %}">
+    {% tailwind_css %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased">
+
+    <header class="bg-white border-b border-slate-200">
+        <nav class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <a href="{% url 'home' %}" class="text-xl font-semibold tracking-tight text-slate-900 hover:text-indigo-600 transition-colors">
+                Unmad <span class="text-indigo-600">Archive</span>
+            </a>
+            <div class="flex items-center gap-4 text-sm">
+                {% if user.is_authenticated %}
+                    <span class="hidden sm:inline text-slate-600">
+                        Hi, <span class="font-medium text-slate-900">{{ user.username }}</span>
+                    </span>
+                    {% if user.is_staff %}
+                        <a href="{% url 'admin:index' %}" class="text-slate-700 hover:text-indigo-600 transition-colors">Admin</a>
+                    {% endif %}
+                    {# Logout MUST be POST since Django 4.1 -- a tiny inline form keeps the link semantics. #}
+                    <form method="post" action="{% url 'logout' %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer">
+                            Log out
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="text-slate-700 hover:text-indigo-600 transition-colors">Log in</a>
+                    <a href="{% url 'signup' %}"
+                       class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                        Sign up
+                    </a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    {% if messages %}
+        <div class="max-w-6xl mx-auto w-full px-4 mt-4 space-y-2">
+            {% for message in messages %}
+                <div class="rounded-md border px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-slate-50 border-slate-200 text-slate-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-6">
+        <div class="max-w-6xl mx-auto px-4 text-center text-sm text-slate-500">
+            &copy; {% now "Y" %} Unmad Digital Archive &mdash; built with Django &amp; Tailwind.
+        </div>
+    </footer>
+
+</body>
+</html>
