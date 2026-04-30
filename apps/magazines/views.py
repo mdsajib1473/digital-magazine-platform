@@ -3,7 +3,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Q
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views import View
 from django.views.generic import DetailView, ListView
 
@@ -64,35 +65,67 @@ class IssueDetailView(DetailView):
         return ctx
 
 
+def _gate_or_none(request, issue: Issue):
+    """Shared access gate for the reader + raw-PDF endpoints.
+
+    Returns ``None`` if the user is allowed through. Otherwise returns
+    the appropriate HttpResponseRedirect:
+      * authenticated, no access  -> back to detail with a flash message
+      * anonymous                 -> /accounts/login/?next=<detail-url>
+
+    Centralised here so the reader page and the iframe PDF endpoint can
+    never drift out of sync on access logic.
+    """
+    if issue.is_accessible_by(request.user):
+        return None
+    if request.user.is_authenticated:
+        messages.info(
+            request,
+            f"You need to purchase '{issue.title}' before reading it.",
+        )
+        return redirect("issue_detail", slug=issue.slug)
+    # Anonymous: send to login with ?next=<detail page>. We point to
+    # detail (not the reader) so that a buyer has a clear next step
+    # (the Buy CTA) once authenticated.
+    return redirect_to_login(reverse("issue_detail", kwargs={"slug": issue.slug}))
+
+
 class IssueReadView(View):
     """
-    Gated download endpoint.
+    Embedded reader page.
 
-    Server-side access check, then mints a fresh signed URL via
-    ``issue.pdf_file.url`` (PrivateMediaStorage) and 302s the user
-    straight to it. The signed URL is *never* embedded in any HTML —
-    that prevents leakage to anonymous viewers via View-Source.
+    Renders an HTML shell containing an iframe that points at
+    :class:`IssuePdfView`. The signed URL itself never appears in this
+    response -- only the URL of our own gated PDF endpoint -- so
+    DevTools / View-Source can't lift the link out for sharing.
     """
 
     def get(self, request, slug: str):
         issue = get_object_or_404(Issue, slug=slug)
-
-        if not issue.is_accessible_by(request.user):
-            if request.user.is_authenticated:
-                # Logged in but no purchase -> bounce to detail (Buy CTA).
-                messages.info(
-                    request,
-                    f"You need to purchase '{issue.title}' before reading it.",
-                )
-                return redirect("issue_detail", slug=slug)
-            # Anonymous -> /accounts/login/?next=/issues/<slug>/read/
-            return redirect_to_login(request.get_full_path())
-
+        gated = _gate_or_none(request, issue)
+        if gated is not None:
+            return gated
         if not issue.pdf_file:
             raise Http404("This issue has no PDF uploaded yet.")
+        return render(request, "magazines/issue_read.html", {"issue": issue})
 
-        # .url calls into PrivateMediaStorage and returns a signed URL
-        # (or /media/pdfs/... in local FS mode).
+
+class IssuePdfView(View):
+    """
+    Gated PDF endpoint -- the actual signed-URL minter.
+
+    Hit by the reader page's iframe. Performs the same access check as
+    :class:`IssueReadView`; only then calls ``issue.pdf_file.url`` and
+    302s the iframe to the (short-lived) signed URL.
+    """
+
+    def get(self, request, slug: str):
+        issue = get_object_or_404(Issue, slug=slug)
+        gated = _gate_or_none(request, issue)
+        if gated is not None:
+            return gated
+        if not issue.pdf_file:
+            raise Http404("This issue has no PDF uploaded yet.")
         return redirect(issue.pdf_file.url)
 
 

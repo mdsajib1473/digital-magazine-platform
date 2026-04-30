@@ -34,6 +34,10 @@ ALLOWED_HOSTS = config(
 # Applications
 # ---------------------------------------------------------------------------
 DJANGO_APPS = [
+    # jazzmin MUST come before django.contrib.admin so it can override the
+    # admin templates. Listed in DJANGO_APPS rather than THIRD_PARTY_APPS so
+    # the ordering invariant is unmissable when reading this file top-to-bottom.
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -233,3 +237,91 @@ INTERNAL_IPS = ["127.0.0.1"]
 # django-tailwind on Windows can't always resolve `npm.cmd` from PATH,
 # so we point at it explicitly. On macOS/Linux this would be /usr/local/bin/npm.
 NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
+
+
+# ---------------------------------------------------------------------------
+# django-jazzmin (modern admin UI)
+# ---------------------------------------------------------------------------
+JAZZMIN_SETTINGS = {
+    # Branding shown across admin pages.
+    "site_title": "Unmad Admin",
+    "site_header": "Unmad Archive",
+    "site_brand": "Unmad",
+    "site_logo_classes": "img-circle",
+    "welcome_sign": "Welcome to the Unmad Digital Archive admin",
+    "copyright": "Unmad Digital Archive",
+    # Global search bar at the top of the admin -- queries these models.
+    "search_model": ["magazines.Issue", "accounts.CustomUser"],
+    # Sidebar layout.
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    # Font Awesome icons (Jazzmin bundles FA free).
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.Group": "fas fa-users",
+        "accounts": "fas fa-id-card",
+        "accounts.CustomUser": "fas fa-user",
+        "magazines": "fas fa-book-open",
+        "magazines.Category": "fas fa-folder-open",
+        "magazines.Issue": "fas fa-book",
+        "magazines.Purchase": "fas fa-receipt",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    # Custom ordering: domain models first, accounts next, Django plumbing last.
+    "order_with_respect_to": [
+        "magazines",
+        "magazines.Issue",
+        "magazines.Category",
+        "magazines.Purchase",
+        "accounts",
+        "accounts.CustomUser",
+        "auth",
+    ],
+    # Top bar links: a quick "View site" jump back to the public landing.
+    "topmenu_links": [
+        {"name": "View site", "url": "home", "new_window": True},
+        {"model": "magazines.Issue"},
+    ],
+    # Hide the live theme picker in production -- exposes /jazzmin/ui-builder/.
+    "show_ui_builder": False,
+    # Sensible defaults for change-form layout.
+    "changeform_format": "horizontal_tabs",
+    "related_modal_active": True,
+}
+
+# Visual tweaks (AdminLTE / Bootstrap classes -- separate from Tailwind).
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-indigo",
+    "accent": "accent-indigo",
+    "navbar": "navbar-indigo navbar-dark",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-indigo",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "default",
+    # Jazzmin 3.x: themes now support light/dark via data-bs-theme. The old
+    # ``dark_mode_theme`` key is deprecated; ``default_theme_mode="auto"``
+    # follows the user's OS preference.
+    "default_theme_mode": "auto",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
+    },
+}

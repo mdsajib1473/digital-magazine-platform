@@ -9,6 +9,7 @@ from .views import (
     IssueBuyView,
     IssueDetailView,
     IssueListView,
+    IssuePdfView,
     IssueReadView,
 )
 
@@ -25,6 +26,11 @@ urlpatterns = [
         "issues/<uslug:slug>/read/",
         IssueReadView.as_view(),
         name="issue_read",
+    ),
+    path(
+        "issues/<uslug:slug>/pdf/",
+        IssuePdfView.as_view(),
+        name="issue_pdf",
     ),
     path(
         "issues/<uslug:slug>/buy/",
