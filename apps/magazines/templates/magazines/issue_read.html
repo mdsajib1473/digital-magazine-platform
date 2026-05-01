@@ -97,10 +97,10 @@ ANTI-PIRACY NOTE:
     <div id="pdf-error" class="hidden py-12 text-center" role="alert">
         <p id="pdf-error-text" class="text-sm text-rose-700 font-medium">The PDF couldn't be loaded.</p>
         <p class="mt-1 text-xs text-slate-500">Your session may have expired, or the file is temporarily unavailable.</p>
-        <a href="{% url 'issue_pdf' slug=issue.slug %}" target="_blank" rel="noopener"
-           class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-500 underline">
-            Try opening in a new tab &rarr;
-        </a>
+        <button type="button" onclick="window.location.reload();"
+                class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-500 underline">
+            Refresh and try again
+        </button>
     </div>
 
     {# Page container: JS creates one slot per PDF page, each containing a <canvas>. #}
@@ -108,14 +108,9 @@ ANTI-PIRACY NOTE:
          class="hidden space-y-4 bg-slate-100 p-2 sm:p-4 rounded-lg border border-slate-200 shadow-inner">
     </div>
 
-    {# Footer: status + escape hatch. #}
-    <p class="mt-4 text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
-        <span>Reading issue #{{ issue.issue_number }} of {{ issue.title }}.</span>
-        <a href="{% url 'issue_pdf' slug=issue.slug %}"
-           target="_blank" rel="noopener"
-           class="text-indigo-600 hover:text-indigo-500">
-            Open raw PDF in a new tab &rarr;
-        </a>
+    {# Footer: status only. The reader is the only sanctioned way to view this PDF. #}
+    <p class="mt-4 text-xs text-slate-500">
+        Reading issue #{{ issue.issue_number }} of {{ issue.title }}.
     </p>
 
 </div>
@@ -214,13 +209,18 @@ one). This is a minimal canvas-only renderer with our own chrome.
         });
 
     /**
-     * Download the JSON envelope, parse it, and Base64-decode `pdf_data`
-     * into a Uint8Array suitable for PDF.js's getDocument({data:}) form.
+     * Download the XOR-masked PDF and reverse the mask in place, returning
+     * a Uint8Array of clean bytes ready for PDF.js's getDocument({data:}).
+     *
+     * Wire format: octet-stream where each byte has been XOR'd with
+     * PDF_XOR_KEY (must match server-side apps/magazines/views.py).
      *
      * Streams the response with progress reporting when the browser
      * supports ReadableStream + Content-Length is present; falls back to
-     * res.json() otherwise (no progress %, but still works).
+     * res.arrayBuffer() otherwise (no progress %, but still works).
      */
+    var PDF_XOR_KEY = 0xAA;
+
     function fetchAndDecodePdf(url) {
         setStatusText('Downloading PDF\u2026');
         return fetch(url, { credentials: 'include' }).then(function (res) {
@@ -229,44 +229,33 @@ one). This is a minimal canvas-only renderer with our own chrome.
             if (total > 0 && res.body && typeof res.body.getReader === 'function') {
                 return readStreamWithProgress(res.body, total);
             }
-            return res.json();
-        }).then(function (payload) {
-            if (!payload || typeof payload.pdf_data !== 'string') {
-                throw new Error('Malformed JSON payload: missing pdf_data field');
-            }
+            return res.arrayBuffer().then(function (buf) { return new Uint8Array(buf); });
+        }).then(function (bytes) {
             setStatusText('Decoding PDF\u2026');
-            // atob() returns a binary string (each char's code point IS a
-            // byte 0-255). Uint8Array.from with a mapper is the cleanest
-            // ES6 idiom -- single pass, no intermediate copy. ~300-500ms
-            // for a 50MB PDF on a mid-range laptop.
-            return Uint8Array.from(atob(payload.pdf_data), function (c) {
-                return c.charCodeAt(0);
-            });
+            // XOR-unmask in place. The server XOR'd each byte with the same
+            // key before sending; XOR is symmetric so applying the same key
+            // again restores the original bytes. ~50-100 ms for a 50 MB PDF
+            // and zero extra allocation -- we operate on the buffer we
+            // already own from the fetch response.
+            for (var i = 0; i < bytes.length; i++) bytes[i] ^= PDF_XOR_KEY;
+            return bytes;
         });
     }
 
     function readStreamWithProgress(body, total) {
+        // Pre-allocate the full buffer up front (we know the size from
+        // Content-Length). This avoids a chunks-array + concat copy phase
+        // and keeps peak memory at exactly 1x file size.
         var reader = body.getReader();
-        var chunks = [];
-        var loaded = 0;
+        var buf    = new Uint8Array(total);
+        var off    = 0;
         function pump() {
             return reader.read().then(function (r) {
-                if (r.done) {
-                    // Concat all chunks into one buffer, then UTF-8-decode
-                    // it as a JSON string. Safe to use TextDecoder because
-                    // Base64 is pure ASCII, so the JSON envelope is too.
-                    var buf = new Uint8Array(loaded);
-                    var off = 0;
-                    for (var i = 0; i < chunks.length; i++) {
-                        buf.set(chunks[i], off);
-                        off += chunks[i].length;
-                    }
-                    return JSON.parse(new TextDecoder('utf-8').decode(buf));
-                }
-                chunks.push(r.value);
-                loaded += r.value.length;
+                if (r.done) return buf;
+                buf.set(r.value, off);
+                off += r.value.length;
                 setStatusText('Downloading PDF\u2026 ' +
-                    Math.round(100 * loaded / total) + '%');
+                    Math.round(100 * off / total) + '%');
                 return pump();
             });
         }

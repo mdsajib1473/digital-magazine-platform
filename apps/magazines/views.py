@@ -1,10 +1,8 @@
-import base64
-
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Q
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -13,6 +11,58 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.generic import DetailView, ListView
 
 from .models import Issue, Purchase
+
+
+# ---------------------------------------------------------------------------
+# IDM-evasion XOR mask
+#
+# IDM (Internet Download Manager) and similar tools intercept HTTP responses
+# whose bodies start with the ``%PDF-`` magic bytes -- they do this regardless
+# of the Content-Type header. By XOR-ing every byte with a fixed key before
+# streaming, we ensure the literal ``%PDF-`` byte sequence never appears in
+# the response body. The client reverses the mask in JS before handing the
+# bytes to PDF.js.
+#
+# Trade-offs vs. Base64-in-JSON (which we used previously):
+#   - Bandwidth: 1.0x file size (Base64 was 1.33x).
+#   - Server RAM: streaming chunks (~64 KB) per request (Base64 held the
+#     entire file in memory while JsonResponse serialised it).
+#   - Time-to-first-page: same as Base64 (PDF.js still needs the whole
+#     buffer for ``data:`` mode), but the network phase is faster.
+#   - Range requests: not used by client (PDF.js ``data:`` mode), but the
+#     server side could support them if needed -- XOR is a per-byte op,
+#     so any byte range can be masked independently.
+#
+# SECURITY NOTE: This is obfuscation, not encryption. Anyone with DevTools
+# can read the unmasked bytes from PDF.js's parsed Uint8Array, just like
+# they can with any client-rendered PDF reader. The goal here is purely to
+# evade IDM's heuristic body sniffing. Real anti-piracy requires per-user
+# watermarking baked into the PDF before streaming.
+#
+# The key value MUST match ``PDF_XOR_KEY`` in the reader template's JS
+# (apps/magazines/templates/magazines/issue_read.html). If you change one,
+# change both.
+PDF_XOR_KEY = 0xAA
+# Lookup table for fast XOR via ``bytes.translate()``: at our 64 KB chunk
+# size this is ~1 GB/s in CPython vs. ~50 MB/s for a per-byte generator
+# expression. Built once at import time.
+_PDF_XOR_TABLE = bytes(b ^ PDF_XOR_KEY for b in range(256))
+
+
+def _xor_pdf_stream(file_obj, chunk_size=64 * 1024):
+    """
+    Yield the file's bytes XOR-masked with ``PDF_XOR_KEY`` in fixed-size
+    chunks. Closes ``file_obj`` on exhaustion or exception so we don't leak
+    file descriptors when many readers connect concurrently.
+    """
+    try:
+        while True:
+            chunk = file_obj.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk.translate(_PDF_XOR_TABLE)
+    finally:
+        file_obj.close()
 
 
 class IssueListView(ListView):
@@ -120,40 +170,30 @@ class IssueReadView(View):
 @method_decorator(xframe_options_sameorigin, name="dispatch")
 class IssuePdfView(View):
     """
-    Gated PDF endpoint -- two response modes selected by ?client query:
+    Gated PDF endpoint -- two response modes selected by ``?client``:
 
-      * ?client=pdfjs (XHR from our reader page): the PDF bytes are Base64-
-        encoded and wrapped inside a JSON object: ``{"pdf_data": "..."}``.
-        IDM and similar download managers do heuristic body sniffing -- a
-        plain octet-stream still gets intercepted because they recognise the
-        ``%PDF-`` magic bytes at offset 0. By wrapping the bytes inside a
-        JSON string with Base64 encoding, the literal ``%PDF-`` substring
-        never appears in the response body and IDM ignores it as plain JSON.
+      * ?client=pdfjs (XHR from our reader page): bytes are XOR-masked with
+        ``PDF_XOR_KEY`` and streamed as ``application/octet-stream``. The
+        ``%PDF-`` magic bytes never appear in the wire bytes, so IDM's
+        heuristic body-sniffing skips the response. The reader's JS
+        reverses the XOR before passing the buffer to PDF.js. Streamed in
+        64 KB chunks so the server never holds the whole file in RAM,
+        regardless of concurrent reader count.
 
-      * No query (direct navigation, e.g. "Open raw PDF in a new tab"
-        escape hatch): real ``application/pdf`` inline response so the
-        browser's native viewer can render it normally.
-
-    TRADE-OFFS for the JSON mode (acknowledged):
-      - +33% bandwidth (Base64 inflation: 3 bytes encoded as 4 chars).
-      - No HTTP Range / streaming: PDF.js can't render page 1 until the
-        entire file has downloaded and Base64-decoded.
-      - Whole PDF held in Django RAM per concurrent request: ~1.33x
-        filesize. With 10 concurrent reads of a 50MB PDF that's ~670MB.
-      - ``onProgress`` granularity drops to download-only (no parse phase).
-    Re-evaluate this approach if you ever serve >100MB PDFs or need
-    first-page latency under ~10s on slow connections. The lower-cost
-    alternative is an XOR byte-mask on the FileResponse stream, which
-    preserves Range requests at zero bandwidth overhead.
+      * No query: real ``application/pdf`` inline response. This path now
+        only exists for completeness / testing / admin debugging -- the
+        reader template no longer exposes a link to it. Direct URL access
+        will still hit IDM, which is precisely why we removed the link.
 
     Why @xframe_options_sameorigin: defence-in-depth, in case a future
     tweak ever embeds the response in an iframe again.
 
-    PRODUCTION NOTE: With Supabase/S3-backed storage, the JSON path means
-    Django pulls the full file from object storage on every read instead
-    of 302-redirecting to a signed URL. Bandwidth doubles (storage->Django
-    + Django->client). Plan to revisit this when the magazine catalogue
-    or concurrent reader count grows.
+    PRODUCTION NOTE: With Supabase/S3-backed storage, this view streams
+    bytes through Django on every read. The optimisation path is to 302
+    to a signed URL with appropriate headers; the IDM-evasion mode would
+    need an edge-side XOR transform (Cloudflare Worker, etc.) to preserve
+    the magic-byte hiding. Plan that migration when reader concurrency
+    starts saturating the Django process.
     """
 
     def get(self, request, slug: str):
@@ -165,14 +205,22 @@ class IssuePdfView(View):
             raise Http404("This issue has no PDF uploaded yet.")
 
         if request.GET.get("client") == "pdfjs":
-            # IDM-evasion mode v2: full Base64-in-JSON encoding so the
-            # ``%PDF-`` magic bytes never appear in the response body.
-            with issue.pdf_file.open("rb") as fh:
-                pdf_bytes = fh.read()
-            encoded = base64.b64encode(pdf_bytes).decode("ascii")
-            return JsonResponse({"pdf_data": encoded})
+            # IDM-evasion mode: streaming XOR-masked bytes. Generic labels
+            # (octet-stream + stream.dat) on top of the masked body so IDM
+            # has nothing to sniff -- not the headers, not the magic bytes.
+            resp = StreamingHttpResponse(
+                _xor_pdf_stream(issue.pdf_file.open("rb")),
+                content_type="application/octet-stream",
+            )
+            resp["Content-Disposition"] = 'inline; filename="stream.dat"'
+            # Set Content-Length so the JS streaming reader can show a real
+            # progress percentage. XOR is byte-preserving, so the masked
+            # output is exactly the same size as the source.
+            resp["Content-Length"] = str(issue.pdf_file.size)
+            return resp
 
-        # Direct-navigation mode: real PDF labels for the native viewer.
+        # Direct-navigation mode: real PDF labels (now only used for
+        # admin/testing -- the reader UI no longer links to this).
         return FileResponse(
             issue.pdf_file.open("rb"),
             as_attachment=False,
