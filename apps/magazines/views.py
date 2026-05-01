@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Q
-from django.http import FileResponse, Http404, StreamingHttpResponse
+from django.http import Http404, HttpResponseForbidden, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -170,23 +170,35 @@ class IssueReadView(View):
 @method_decorator(xframe_options_sameorigin, name="dispatch")
 class IssuePdfView(View):
     """
-    Gated PDF endpoint -- two response modes selected by ``?client``:
+    Gated, sealed PDF endpoint. The ONLY sanctioned access pattern is the
+    XHR from our reader page with ``?client=pdfjs``, which returns the
+    file's bytes XOR-masked with ``PDF_XOR_KEY`` and streamed as
+    ``application/octet-stream``. The reader's JS reverses the XOR before
+    handing the buffer to PDF.js.
 
-      * ?client=pdfjs (XHR from our reader page): bytes are XOR-masked with
-        ``PDF_XOR_KEY`` and streamed as ``application/octet-stream``. The
-        ``%PDF-`` magic bytes never appear in the wire bytes, so IDM's
-        heuristic body-sniffing skips the response. The reader's JS
-        reverses the XOR before passing the buffer to PDF.js. Streamed in
-        64 KB chunks so the server never holds the whole file in RAM,
-        regardless of concurrent reader count.
+    Any other access pattern -- direct navigation, missing ``?client``,
+    wrong ``?client`` value, IDM following the URL out of the page DOM --
+    gets a 403 Forbidden. There is no longer any path that serves the raw
+    PDF bytes to a browser or download manager.
 
-      * No query: real ``application/pdf`` inline response. This path now
-        only exists for completeness / testing / admin debugging -- the
-        reader template no longer exposes a link to it. Direct URL access
-        will still hit IDM, which is precisely why we removed the link.
+    Access control layering (in order):
+      1. ``_gate_or_none()`` handles auth + purchase gating. Anonymous
+         users are redirected to login; authenticated-but-unpaid users
+         are bounced to the issue detail page with a flash message.
+      2. 404 if the issue has no PDF file attached yet.
+      3. 403 if the request is missing the ``?client=pdfjs`` marker.
+         Placed AFTER auth so unauthenticated callers don't learn that
+         the endpoint exists -- they see the login redirect first.
 
     Why @xframe_options_sameorigin: defence-in-depth, in case a future
     tweak ever embeds the response in an iframe again.
+
+    SECURITY NOTE: The ``?client=pdfjs`` marker is trivially forgeable --
+    any caller who inspects the reader HTML can copy the query string.
+    Its role is UX gating ("don't accidentally dump the raw file to a
+    browser tab"), not authorization. The real access control is the
+    auth/purchase gate above. If you ever need stronger per-request
+    binding, add a short-lived signed token keyed to the user's session.
 
     PRODUCTION NOTE: With Supabase/S3-backed storage, this view streams
     bytes through Django on every read. The optimisation path is to 302
@@ -204,29 +216,28 @@ class IssuePdfView(View):
         if not issue.pdf_file:
             raise Http404("This issue has no PDF uploaded yet.")
 
-        if request.GET.get("client") == "pdfjs":
-            # IDM-evasion mode: streaming XOR-masked bytes. Generic labels
-            # (octet-stream + stream.dat) on top of the masked body so IDM
-            # has nothing to sniff -- not the headers, not the magic bytes.
-            resp = StreamingHttpResponse(
-                _xor_pdf_stream(issue.pdf_file.open("rb")),
-                content_type="application/octet-stream",
+        # Seal: reject anything that isn't the reader's XHR. The marker
+        # itself isn't a security mechanism (see SECURITY NOTE in the
+        # class docstring), but closing this path ensures IDM can't grab
+        # a raw application/pdf response by following /pdf/ directly.
+        if request.GET.get("client") != "pdfjs":
+            return HttpResponseForbidden(
+                "Direct PDF access is not allowed. " "Please use the in-browser reader."
             )
-            resp["Content-Disposition"] = 'inline; filename="stream.dat"'
-            # Set Content-Length so the JS streaming reader can show a real
-            # progress percentage. XOR is byte-preserving, so the masked
-            # output is exactly the same size as the source.
-            resp["Content-Length"] = str(issue.pdf_file.size)
-            return resp
 
-        # Direct-navigation mode: real PDF labels (now only used for
-        # admin/testing -- the reader UI no longer links to this).
-        return FileResponse(
-            issue.pdf_file.open("rb"),
-            as_attachment=False,
-            filename=f"{issue.slug}.pdf",
-            content_type="application/pdf",
+        # IDM-evasion mode: streaming XOR-masked bytes. Generic labels
+        # (octet-stream + stream.dat) on top of the masked body so IDM
+        # has nothing to sniff -- not the headers, not the magic bytes.
+        resp = StreamingHttpResponse(
+            _xor_pdf_stream(issue.pdf_file.open("rb")),
+            content_type="application/octet-stream",
         )
+        resp["Content-Disposition"] = 'inline; filename="stream.dat"'
+        # Set Content-Length so the JS streaming reader can show a real
+        # progress percentage. XOR is byte-preserving, so the masked
+        # output is exactly the same size as the source.
+        resp["Content-Length"] = str(issue.pdf_file.size)
+        return resp
 
 
 class IssueBuyView(LoginRequiredMixin, View):
