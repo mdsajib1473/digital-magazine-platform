@@ -1,8 +1,10 @@
+import base64
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Q
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -118,29 +120,40 @@ class IssueReadView(View):
 @method_decorator(xframe_options_sameorigin, name="dispatch")
 class IssuePdfView(View):
     """
-    Gated PDF endpoint -- streams the file inline for the reader iframe.
+    Gated PDF endpoint -- two response modes selected by ?client query:
 
-    Why we stream rather than 302-to-signed-URL (the previous approach):
-      1. The old 302 response got ``X-Frame-Options: DENY`` from Django's
-         ``XFrameOptionsMiddleware``. Browsers enforce XFO on every
-         response in a redirect chain, so the iframe refused to embed
-         the PDF at all -- result: blank iframe.
-      2. Even if the iframe could follow, ``django.views.static.serve``
-         (DEBUG media handler) doesn't set ``Content-Disposition``, which
-         Chrome/Edge treat as ambiguous and often downloads instead of
-         rendering inline.
+      * ?client=pdfjs (XHR from our reader page): the PDF bytes are Base64-
+        encoded and wrapped inside a JSON object: ``{"pdf_data": "..."}``.
+        IDM and similar download managers do heuristic body sniffing -- a
+        plain octet-stream still gets intercepted because they recognise the
+        ``%PDF-`` magic bytes at offset 0. By wrapping the bytes inside a
+        JSON string with Base64 encoding, the literal ``%PDF-`` substring
+        never appears in the response body and IDM ignores it as plain JSON.
 
-    ``FileResponse(..., as_attachment=False, content_type="application/pdf")``
-    fixes both: it sets ``Content-Disposition: inline; filename="..."``,
-    and the ``@xframe_options_sameorigin`` decorator overrides the DENY
-    header so our own same-origin reader iframe can load it.
+      * No query (direct navigation, e.g. "Open raw PDF in a new tab"
+        escape hatch): real ``application/pdf`` inline response so the
+        browser's native viewer can render it normally.
 
-    PRODUCTION NOTE: When PrivateMediaStorage is backed by Supabase/S3,
-    this view still works (it streams through Django) but is bandwidth-
-    expensive -- every read proxies the file through our server. The
-    optimisation path is to 302 to a signed URL with query parameter
-    ``response-content-disposition=inline`` so the CDN sets it. Document
-    that swap when wiring real Supabase.
+    TRADE-OFFS for the JSON mode (acknowledged):
+      - +33% bandwidth (Base64 inflation: 3 bytes encoded as 4 chars).
+      - No HTTP Range / streaming: PDF.js can't render page 1 until the
+        entire file has downloaded and Base64-decoded.
+      - Whole PDF held in Django RAM per concurrent request: ~1.33x
+        filesize. With 10 concurrent reads of a 50MB PDF that's ~670MB.
+      - ``onProgress`` granularity drops to download-only (no parse phase).
+    Re-evaluate this approach if you ever serve >100MB PDFs or need
+    first-page latency under ~10s on slow connections. The lower-cost
+    alternative is an XOR byte-mask on the FileResponse stream, which
+    preserves Range requests at zero bandwidth overhead.
+
+    Why @xframe_options_sameorigin: defence-in-depth, in case a future
+    tweak ever embeds the response in an iframe again.
+
+    PRODUCTION NOTE: With Supabase/S3-backed storage, the JSON path means
+    Django pulls the full file from object storage on every read instead
+    of 302-redirecting to a signed URL. Bandwidth doubles (storage->Django
+    + Django->client). Plan to revisit this when the magazine catalogue
+    or concurrent reader count grows.
     """
 
     def get(self, request, slug: str):
@@ -150,6 +163,16 @@ class IssuePdfView(View):
             return gated
         if not issue.pdf_file:
             raise Http404("This issue has no PDF uploaded yet.")
+
+        if request.GET.get("client") == "pdfjs":
+            # IDM-evasion mode v2: full Base64-in-JSON encoding so the
+            # ``%PDF-`` magic bytes never appear in the response body.
+            with issue.pdf_file.open("rb") as fh:
+                pdf_bytes = fh.read()
+            encoded = base64.b64encode(pdf_bytes).decode("ascii")
+            return JsonResponse({"pdf_data": encoded})
+
+        # Direct-navigation mode: real PDF labels for the native viewer.
         return FileResponse(
             issue.pdf_file.open("rb"),
             as_attachment=False,

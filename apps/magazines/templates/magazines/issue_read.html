@@ -24,9 +24,7 @@ ANTI-PIRACY NOTE:
 {% endcomment %}
 
 {% block extra_head %}
-    {# PDF.js core -- CDN, version-pinned. If you bump the version here, bump
-       PDFJS_WORKER_SRC in the driver script below too; they MUST match
-       exactly or the worker will refuse to parse the document. #}
+    {# PDF.js core, version-pinned. Bump PDFJS_WORKER_SRC in the driver script below in lockstep with this URL. #}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 {% endblock %}
 
@@ -163,7 +161,12 @@ one). This is a minimal canvas-only renderer with our own chrome.
     var zoomOutBtn   = document.getElementById('pdf-zoom-out');
     var zoomResetBtn = document.getElementById('pdf-zoom-reset');
 
-    var PDF_URL = root.dataset.pdfUrl;
+    // Append ?client=pdfjs so the server can disguise the response as a generic
+    // binary stream (Content-Type: application/octet-stream + filename=stream.dat).
+    // This slips past download managers like IDM that sniff application/pdf
+    // responses and hijack them. Escape-hatch links elsewhere on the page use
+    // the clean URL so the native browser viewer still works for direct nav.
+    var PDF_URL = root.dataset.pdfUrl + '?client=pdfjs';
 
     if (typeof pdfjsLib === 'undefined') {
         showError('Reader library failed to load. Check your network / ad-blocker.');
@@ -194,21 +197,81 @@ one). This is a minimal canvas-only renderer with our own chrome.
     }
 
     // -- Kick off document load -------------------------------------------
-    // Same-origin fetch: Django session cookie is sent automatically.
-    var loadingTask = pdfjsLib.getDocument({ url: PDF_URL, withCredentials: false });
+    // The server returns a Base64-in-JSON envelope ({"pdf_data": "..."})
+    // instead of raw PDF bytes -- this is what defeats IDM's heuristic body
+    // sniffing (see IssuePdfView docstring for the full rationale). We have
+    // to fetch + decode it ourselves and hand PDF.js a Uint8Array via the
+    // `data:` option, since `url:` mode would expect raw PDF bytes.
+    fetchAndDecodePdf(PDF_URL)
+        .then(function (bytes) {
+            setStatusText('Parsing PDF\u2026');
+            return pdfjsLib.getDocument({ data: bytes }).promise;
+        })
+        .then(onDocumentLoaded)
+        .catch(function (err) {
+            console.error('[unmad-reader] PDF load failed:', err);
+            showError();
+        });
 
-    loadingTask.onProgress = function (p) {
-        if (p.total) {
-            setStatusText('Loading PDF\u2026 ' + Math.round(100 * p.loaded / p.total) + '%');
-        } else {
-            setStatusText('Loading PDF\u2026 ' + Math.round(p.loaded / 1024) + ' KB');
+    /**
+     * Download the JSON envelope, parse it, and Base64-decode `pdf_data`
+     * into a Uint8Array suitable for PDF.js's getDocument({data:}) form.
+     *
+     * Streams the response with progress reporting when the browser
+     * supports ReadableStream + Content-Length is present; falls back to
+     * res.json() otherwise (no progress %, but still works).
+     */
+    function fetchAndDecodePdf(url) {
+        setStatusText('Downloading PDF\u2026');
+        return fetch(url, { credentials: 'include' }).then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            var total = parseInt(res.headers.get('Content-Length') || '0', 10);
+            if (total > 0 && res.body && typeof res.body.getReader === 'function') {
+                return readStreamWithProgress(res.body, total);
+            }
+            return res.json();
+        }).then(function (payload) {
+            if (!payload || typeof payload.pdf_data !== 'string') {
+                throw new Error('Malformed JSON payload: missing pdf_data field');
+            }
+            setStatusText('Decoding PDF\u2026');
+            // atob() returns a binary string (each char's code point IS a
+            // byte 0-255). Uint8Array.from with a mapper is the cleanest
+            // ES6 idiom -- single pass, no intermediate copy. ~300-500ms
+            // for a 50MB PDF on a mid-range laptop.
+            return Uint8Array.from(atob(payload.pdf_data), function (c) {
+                return c.charCodeAt(0);
+            });
+        });
+    }
+
+    function readStreamWithProgress(body, total) {
+        var reader = body.getReader();
+        var chunks = [];
+        var loaded = 0;
+        function pump() {
+            return reader.read().then(function (r) {
+                if (r.done) {
+                    // Concat all chunks into one buffer, then UTF-8-decode
+                    // it as a JSON string. Safe to use TextDecoder because
+                    // Base64 is pure ASCII, so the JSON envelope is too.
+                    var buf = new Uint8Array(loaded);
+                    var off = 0;
+                    for (var i = 0; i < chunks.length; i++) {
+                        buf.set(chunks[i], off);
+                        off += chunks[i].length;
+                    }
+                    return JSON.parse(new TextDecoder('utf-8').decode(buf));
+                }
+                chunks.push(r.value);
+                loaded += r.value.length;
+                setStatusText('Downloading PDF\u2026 ' +
+                    Math.round(100 * loaded / total) + '%');
+                return pump();
+            });
         }
-    };
-
-    loadingTask.promise.then(onDocumentLoaded).catch(function (err) {
-        console.error('[unmad-reader] PDF.js load failed:', err);
-        showError();
-    });
+        return pump();
+    }
 
     // -- Document loaded: build the page slots ----------------------------
     function onDocumentLoaded(doc) {
@@ -217,13 +280,13 @@ one). This is a minimal canvas-only renderer with our own chrome.
         setStatusText('Preparing ' + doc.numPages + ' page' + (doc.numPages === 1 ? '' : 's') + '\u2026');
 
         return doc.getPage(1).then(function (firstPage) {
-            // Compute the fit-width scale based on page 1's unscaled viewport.
-            // Assumes uniform page size (typical for magazines); mixed-size docs
-            // will have slot placeholders slightly off but each canvas renders
-            // correctly relative to its OWN page's viewport.
+            // We assume uniform page size (typical for magazines). Mixed-size
+            // docs still render each canvas at its own page's correct viewport;
+            // only the slot placeholder aspect-ratio would be slightly off.
             var unscaled = firstPage.getViewport({ scale: 1 });
-            baseScale = computeFitWidthScale(unscaled.width);
 
+            // Phase 1: place all slots with aspect-ratio so the scrollbar
+            // settles at its final length immediately (no layout-shift jank).
             var frag = document.createDocumentFragment();
             for (var i = 1; i <= doc.numPages; i++) {
                 var slot = document.createElement('div');
@@ -244,6 +307,13 @@ one). This is a minimal canvas-only renderer with our own chrome.
 
             statusEl.classList.add('hidden');
             containerEl.classList.remove('hidden');
+
+            // Phase 2: NOW that slot[0] has been laid out, derive baseScale
+            // from its actual rendered CSS-pixel width. This guarantees that
+            // baseScale * unscaled.width == slot.width *exactly*, so each
+            // canvas's CSS pixel size will match its slot dimensions with no
+            // fractional rounding -- a prerequisite for crisp Hi-DPI output.
+            baseScale = computeFitWidthScale(unscaled.width);
 
             // Lazy-render via IntersectionObserver.
             observer = new IntersectionObserver(onSlotsIntersect, {
@@ -288,20 +358,65 @@ one). This is a minimal canvas-only renderer with our own chrome.
         renderTokens.set(num, myToken);
 
         return pdfDoc.getPage(num).then(function (page) {
-            var scale = baseScale * zoomFactor * (window.devicePixelRatio || 1);
-            var viewport = page.getViewport({ scale: scale });
+            // ----- Hi-DPI rendering, the textbook PDF.js way -----
+            //
+            // 1. `viewport` represents the page in CSS pixels -- this is the
+            //    size the canvas will OCCUPY in the layout.
+            // 2. `outputScale` (= devicePixelRatio) is how many DEVICE pixels
+            //    we paint per CSS pixel. On a retina display this is 2; on
+            //    Windows zoom 150% it's 1.5; on standard screens it's 1.
+            // 3. canvas.width/height = device-pixel resolution (intrinsic).
+            //    canvas.style.width/height = CSS-pixel size (display).
+            //    The browser CSS-downscales 2:1 against the device pixel grid,
+            //    which is the exact scenario where downscaling stays crisp.
+            // 4. The `transform` parameter tells PDF.js to scale its drawing
+            //    operations up by outputScale, so the page actually paints to
+            //    the full device-pixel resolution rather than the CSS-pixel
+            //    one. Equivalent to baking outputScale into viewport.scale,
+            //    but cleaner because `viewport` stays aligned with layout.
+            //
+            // The previous version set canvas.style.width = '100%', which made
+            // the browser compute the CSS pixel width from the slot's layout
+            // (often a non-integer value). Downscaling 1600px-intrinsic into
+            // a 768.4px CSS box does not align to the device-pixel grid and
+            // smears every glyph through bilinear filtering. Explicit pixel
+            // sizing fixes that.
+            var cssScale    = baseScale * zoomFactor;
+            var viewport    = page.getViewport({ scale: cssScale });
+            // Force >= 2.5x supersampling so standard-DPI (1080p) monitors
+            // get crystal-sharp text -- on those screens devicePixelRatio is
+            // 1, which would otherwise leave us with raw page-resolution
+            // canvases that the browser blurs through bilinear filtering.
+            // Cost: a fit-width canvas at 2.5x is ~6.25x more pixels than
+            // 1x, ~40MB per canvas at letter size. The IntersectionObserver
+            // lazy-render keeps peak memory bounded to the few pages near
+            // the viewport; if you see canvas-size errors on low-end Android,
+            // drop this floor to 2.0 -- you keep most of the visual gain at
+            // ~64% of the memory cost.
+            var outputScale = Math.max(window.devicePixelRatio || 1, 2.5);
 
             var canvas = document.createElement('canvas');
-            canvas.width  = Math.floor(viewport.width);
-            canvas.height = Math.floor(viewport.height);
-            // CSS downscale the hi-DPI canvas to logical size (crisp on retina).
-            canvas.style.width  = '100%';
-            canvas.style.height = '100%';
-            canvas.className = 'block';
+            canvas.width  = Math.floor(viewport.width  * outputScale);
+            canvas.height = Math.floor(viewport.height * outputScale);
+            canvas.style.width  = Math.floor(viewport.width)  + 'px';
+            canvas.style.height = Math.floor(viewport.height) + 'px';
+            canvas.style.maxWidth = '100%';
+            canvas.style.display  = 'block';
+            canvas.style.margin   = '0 auto';
 
             var ctx = canvas.getContext('2d', { alpha: false });
 
-            return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+            // outputScale === 1 -> pass null so PDF.js short-circuits the
+            // matrix multiply (tiny perf win on standard-DPI screens).
+            var transform = outputScale !== 1
+                ? [outputScale, 0, 0, outputScale, 0, 0]
+                : null;
+
+            return page.render({
+                canvasContext: ctx,
+                viewport: viewport,
+                transform: transform,
+            }).promise.then(function () {
                 // If we got pre-empted by a zoom, drop this result.
                 if (renderTokens.get(num) !== myToken) return;
                 slot.innerHTML = '';
@@ -339,20 +454,43 @@ one). This is a minimal canvas-only renderer with our own chrome.
         if (!pdfDoc) return;
         pdfDoc.getPage(1).then(function (p) {
             var unscaled = p.getViewport({ scale: 1 });
-            var newBase = computeFitWidthScale(unscaled.width);
-            if (Math.abs(newBase - baseScale) > 0.5) {
-                baseScale = newBase;
-                var currentZoom = zoomFactor;
-                // Jiggle to force invalidation, then restore.
-                zoomFactor = currentZoom + 0.0001;
-                applyZoom(currentZoom);
+            var newBase  = computeFitWidthScale(unscaled.width);
+            // Re-render only if the change is >= 1 CSS pixel of slot width.
+            // Anything smaller is below visual perception and would just churn.
+            if (Math.abs(newBase - baseScale) * unscaled.width < 1) return;
+            baseScale = newBase;
+            // Force re-render of all pages at the new scale. We can't reuse
+            // applyZoom() here because zoomFactor itself didn't change -- we
+            // need to invalidate the canvases directly.
+            renderedPages.clear();
+            renderTokens.clear();
+            slots.forEach(function (slot) {
+                slot.innerHTML =
+                    '<div class="absolute inset-0 flex items-center justify-center text-xs text-slate-400">' +
+                    'Page ' + slot.dataset.pageNum +
+                    '</div>';
+            });
+            if (observer) {
+                slots.forEach(function (s) { observer.unobserve(s); });
+                slots.forEach(function (s) { observer.observe(s); });
             }
         });
     }
 
     function computeFitWidthScale(unscaledWidth) {
-        // Leave room for inner padding (p-4 = 16px each side) + tiny safety margin.
-        var avail = Math.max(320, containerEl.clientWidth - 40);
+        // Prefer the actual measured CSS-pixel width of slot[0] -- this is
+        // the value the canvas will need to match for pixel-perfect Hi-DPI.
+        // Falls back to a clientWidth-based estimate before any slot exists
+        // (initial scale, pre-placement).
+        if (slots.length > 0) {
+            var measured = slots[0].getBoundingClientRect().width;
+            if (measured > 0) return measured / unscaledWidth;
+        }
+        // p-2 (8px) on small screens, p-4 (16px) on sm+ -- subtract whichever
+        // applies so we don't overshoot and trigger horizontal scroll.
+        var sm  = window.matchMedia && window.matchMedia('(min-width: 640px)').matches;
+        var pad = sm ? 32 : 16;
+        var avail = Math.max(280, containerEl.clientWidth - pad);
         return avail / unscaledWidth;
     }
 
