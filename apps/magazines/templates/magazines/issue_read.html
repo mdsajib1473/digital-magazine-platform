@@ -4,43 +4,49 @@
 
 {% comment %}
 ================================================================================
-Reader page -- embedded PDF in an iframe.
+Reader page -- renders the PDF via PDF.js (Mozilla) into <canvas> elements.
 
-ANTI-PIRACY DISCLAIMER (read this if anyone questions the strength):
-The select-none + oncontextmenu="return false" + ondragstart="return false"
-combination on the parent page is a *psychological* deterrent only. It stops:
-  - casual right-click "Save image as" / "Inspect"
-  - accidental text-selection while scrolling
-  - drag-to-desktop saving of cover images on the surrounding page
-It does NOT stop:
-  - the browser's built-in PDF viewer (right-click *inside* the iframe still
-    works because the iframe content is its own document)
-  - DevTools (Ctrl+Shift+I), View-Source, or `curl` against /pdf/
-  - screenshots / OS-level screen recording
-For *real* anti-piracy you need either (a) a custom PDF.js viewer with the
-download/print toolbar disabled, or (b) per-user watermarking baked into the
-PDF before serving. Both are larger projects; flag if you want them queued.
+WHY PDF.JS RATHER THAN <iframe src=".pdf">:
+  The native browser handler is out of our control -- it obeys per-user
+  settings ("Download PDFs instead of opening them in Chrome", Edge's
+  "Always download PDFs", any installed PDF extension, etc.) which override
+  the server's Content-Disposition: inline. PDF.js sidesteps this entirely:
+  the browser only sees a fetch() returning bytes, and we paint pixels onto
+  <canvas>. No handler, no download prompt, ever.
+
+ANTI-PIRACY NOTE:
+  select-none + oncontextmenu + ondragstart on the wrapper are PSYCHOLOGICAL
+  deterrents against casual Save-As. They do NOT stop DevTools, the Network
+  tab (which still exposes /pdf/), View-Source, or screenshots. For real
+  anti-piracy you want per-user watermarking baked into the PDF before
+  streaming, or a DRM'd viewer -- both much larger projects.
 ================================================================================
 {% endcomment %}
 
+{% block extra_head %}
+    {# PDF.js core -- CDN, version-pinned. If you bump the version here, bump
+       PDFJS_WORKER_SRC in the driver script below too; they MUST match
+       exactly or the worker will refuse to parse the document. #}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+{% endblock %}
+
 {% block content %}
 
-{# Per-page anti-piracy: kills right-click + drag on this whole reader. #}
 <div
+    id="unmad-reader-root"
     class="select-none"
     oncontextmenu="return false;"
     ondragstart="return false;"
     onselectstart="return false;"
+    data-pdf-url="{% url 'issue_pdf' slug=issue.slug %}"
+    data-issue-title="{{ issue.title }}"
 >
 
-    {# ------------------------------------------------------------------ #}
-    {# Reader chrome: title + back + open-in-new-tab fallback             #}
-    {# ------------------------------------------------------------------ #}
+    {# Reader chrome: back link, title, page counter, zoom controls, lock badge. #}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
         <div class="min-w-0">
             <a href="{{ issue.get_absolute_url }}"
                class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition-colors">
-                {# arrow-left icon #}
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
                 </svg>
@@ -52,48 +58,334 @@ PDF before serving. Both are larger projects; flag if you want them queued.
             </h1>
         </div>
 
-        <div class="flex items-center gap-2 text-xs text-slate-500">
-            {# lock icon: signals "this is your copy, please don't share" #}
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-indigo-600">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-            Protected reader &middot; please don't share
+        <div class="flex items-center gap-3 text-xs text-slate-500">
+            {# Page counter: populated by JS once the document loads. #}
+            <span id="pdf-page-counter" class="hidden sm:inline" aria-live="polite">
+                <span id="pdf-page-current">&ndash;</span> / <span id="pdf-page-total">&ndash;</span>
+            </span>
+
+            {# Zoom controls. Disabled until doc loads. #}
+            <div class="flex items-center gap-1" role="group" aria-label="Zoom controls">
+                <button type="button" id="pdf-zoom-out" disabled
+                        class="w-7 h-7 flex items-center justify-center rounded border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Zoom out">&minus;</button>
+                <button type="button" id="pdf-zoom-reset" disabled
+                        class="px-2 h-7 text-xs rounded border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Reset zoom">Fit</button>
+                <button type="button" id="pdf-zoom-in" disabled
+                        class="w-7 h-7 flex items-center justify-center rounded border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Zoom in">+</button>
+            </div>
+
+            <span class="hidden md:inline-flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-indigo-600">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                Protected reader
+            </span>
         </div>
     </div>
 
-    {# ------------------------------------------------------------------ #}
-    {# The iframe -- src is our gated /pdf/ endpoint, NOT the signed URL  #}
-    {# itself. The signed URL never appears in this HTML.                 #}
-    {# ------------------------------------------------------------------ #}
-    <div class="rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
-        <iframe
-            src="{% url 'issue_pdf' slug=issue.slug %}"
-            title="{{ issue.title }} (PDF reader)"
-            class="block w-full h-[85vh] bg-white"
-            referrerpolicy="no-referrer"
-        >
-            {# Fallback for very old browsers without iframe support. #}
-            <p class="p-6 text-sm text-slate-600">
-                Your browser cannot display embedded PDFs.
-                <a href="{% url 'issue_pdf' slug=issue.slug %}"
-                   class="text-indigo-600 hover:text-indigo-500 underline">
-                    Open the PDF in a new tab
-                </a>
-                instead.
-            </p>
-        </iframe>
+    {# Loading state: shown while PDF.js downloads + parses the document. #}
+    <div id="pdf-status" class="py-16 text-center" role="status" aria-live="polite">
+        <svg class="animate-spin mx-auto h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        <p id="pdf-status-text" class="mt-3 text-sm text-slate-600">Loading PDF&hellip;</p>
     </div>
 
-    {# Helpful footer note + escape hatch. #}
+    {# Error state: shown if the fetch or parse fails. Initially hidden. #}
+    <div id="pdf-error" class="hidden py-12 text-center" role="alert">
+        <p id="pdf-error-text" class="text-sm text-rose-700 font-medium">The PDF couldn't be loaded.</p>
+        <p class="mt-1 text-xs text-slate-500">Your session may have expired, or the file is temporarily unavailable.</p>
+        <a href="{% url 'issue_pdf' slug=issue.slug %}" target="_blank" rel="noopener"
+           class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-500 underline">
+            Try opening in a new tab &rarr;
+        </a>
+    </div>
+
+    {# Page container: JS creates one slot per PDF page, each containing a <canvas>. #}
+    <div id="pdf-container"
+         class="hidden space-y-4 bg-slate-100 p-2 sm:p-4 rounded-lg border border-slate-200 shadow-inner">
+    </div>
+
+    {# Footer: status + escape hatch. #}
     <p class="mt-4 text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
         <span>Reading issue #{{ issue.issue_number }} of {{ issue.title }}.</span>
         <a href="{% url 'issue_pdf' slug=issue.slug %}"
            target="_blank" rel="noopener"
            class="text-indigo-600 hover:text-indigo-500">
-            Open in a new tab &rarr;
+            Open raw PDF in a new tab &rarr;
         </a>
     </p>
 
 </div>
+
+{% comment %}
+============================================================================
+PDF.js driver script.
+
+Strategy:
+  1. Kick off getDocument() with a progress callback -> drives the loader UI.
+  2. Once we know numPages + first page dimensions, pre-create N "slot" divs
+     at the correct aspect ratio so the scrollbar is stable from the start.
+  3. Use IntersectionObserver to render each page's canvas lazily, only when
+     it comes within ~500px of the viewport. Keeps memory bounded for
+     100+ page PDFs.
+  4. Zoom = scale multiplier on the fit-width baseline. Changing zoom
+     invalidates all rendered canvases; tokens prevent stale renders.
+  5. Active page counter updates as the user scrolls.
+
+Why not use PDF.js's bundled viewer.html? It's a full UI with its own
+toolbar, download/print buttons, and would require iframing (back to square
+one). This is a minimal canvas-only renderer with our own chrome.
+============================================================================
+{% endcomment %}
+<script>
+(function () {
+    'use strict';
+
+    var PDFJS_WORKER_SRC      = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var OBSERVER_ROOT_MARGIN  = '500px';
+    var ZOOM_STEP = 0.25, ZOOM_MIN = 0.5, ZOOM_MAX = 3.0;
+
+    // -- DOM handles -------------------------------------------------------
+    var root         = document.getElementById('unmad-reader-root');
+    var statusEl     = document.getElementById('pdf-status');
+    var statusTextEl = document.getElementById('pdf-status-text');
+    var errorEl      = document.getElementById('pdf-error');
+    var errorTextEl  = document.getElementById('pdf-error-text');
+    var containerEl  = document.getElementById('pdf-container');
+    var pageCurEl    = document.getElementById('pdf-page-current');
+    var pageTotalEl  = document.getElementById('pdf-page-total');
+    var zoomInBtn    = document.getElementById('pdf-zoom-in');
+    var zoomOutBtn   = document.getElementById('pdf-zoom-out');
+    var zoomResetBtn = document.getElementById('pdf-zoom-reset');
+
+    var PDF_URL = root.dataset.pdfUrl;
+
+    if (typeof pdfjsLib === 'undefined') {
+        showError('Reader library failed to load. Check your network / ad-blocker.');
+        return;
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
+
+    // -- State -------------------------------------------------------------
+    var pdfDoc        = null;
+    var slots         = [];
+    var baseScale     = 1.0;
+    var zoomFactor    = 1.0;
+    var observer      = null;
+    var renderedPages = new Set();
+    var renderTokens  = new Map();
+
+    function setStatusText(msg) { statusTextEl.textContent = msg; }
+
+    function showError(msg) {
+        statusEl.classList.add('hidden');
+        containerEl.classList.add('hidden');
+        if (msg) errorTextEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+    }
+
+    function enableZoomControls() {
+        [zoomInBtn, zoomOutBtn, zoomResetBtn].forEach(function (b) { b.disabled = false; });
+    }
+
+    // -- Kick off document load -------------------------------------------
+    // Same-origin fetch: Django session cookie is sent automatically.
+    var loadingTask = pdfjsLib.getDocument({ url: PDF_URL, withCredentials: false });
+
+    loadingTask.onProgress = function (p) {
+        if (p.total) {
+            setStatusText('Loading PDF\u2026 ' + Math.round(100 * p.loaded / p.total) + '%');
+        } else {
+            setStatusText('Loading PDF\u2026 ' + Math.round(p.loaded / 1024) + ' KB');
+        }
+    };
+
+    loadingTask.promise.then(onDocumentLoaded).catch(function (err) {
+        console.error('[unmad-reader] PDF.js load failed:', err);
+        showError();
+    });
+
+    // -- Document loaded: build the page slots ----------------------------
+    function onDocumentLoaded(doc) {
+        pdfDoc = doc;
+        pageTotalEl.textContent = String(doc.numPages);
+        setStatusText('Preparing ' + doc.numPages + ' page' + (doc.numPages === 1 ? '' : 's') + '\u2026');
+
+        return doc.getPage(1).then(function (firstPage) {
+            // Compute the fit-width scale based on page 1's unscaled viewport.
+            // Assumes uniform page size (typical for magazines); mixed-size docs
+            // will have slot placeholders slightly off but each canvas renders
+            // correctly relative to its OWN page's viewport.
+            var unscaled = firstPage.getViewport({ scale: 1 });
+            baseScale = computeFitWidthScale(unscaled.width);
+
+            var frag = document.createDocumentFragment();
+            for (var i = 1; i <= doc.numPages; i++) {
+                var slot = document.createElement('div');
+                slot.className = 'pdf-page-slot relative bg-white shadow-sm mx-auto';
+                slot.style.aspectRatio = unscaled.width + ' / ' + unscaled.height;
+                slot.style.maxWidth = '100%';
+                slot.dataset.pageNum = String(i);
+
+                var placeholder = document.createElement('div');
+                placeholder.className = 'absolute inset-0 flex items-center justify-center text-xs text-slate-400';
+                placeholder.textContent = 'Page ' + i;
+                slot.appendChild(placeholder);
+
+                frag.appendChild(slot);
+                slots.push(slot);
+            }
+            containerEl.appendChild(frag);
+
+            statusEl.classList.add('hidden');
+            containerEl.classList.remove('hidden');
+
+            // Lazy-render via IntersectionObserver.
+            observer = new IntersectionObserver(onSlotsIntersect, {
+                root: null,
+                rootMargin: OBSERVER_ROOT_MARGIN,
+                threshold: 0.01,
+            });
+            slots.forEach(function (s) { observer.observe(s); });
+
+            setupPageCounter();
+
+            enableZoomControls();
+            zoomInBtn.addEventListener('click',    function () { applyZoom(zoomFactor + ZOOM_STEP); });
+            zoomOutBtn.addEventListener('click',   function () { applyZoom(zoomFactor - ZOOM_STEP); });
+            zoomResetBtn.addEventListener('click', function () { applyZoom(1.0); });
+
+            window.addEventListener('resize', debounce(handleResize, 150));
+        });
+    }
+
+    // -- Lazy rendering ---------------------------------------------------
+    function onSlotsIntersect(entries) {
+        entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            var num = parseInt(entry.target.dataset.pageNum, 10);
+            if (!renderedPages.has(num)) {
+                renderPage(num).catch(function (err) {
+                    console.warn('[unmad-reader] Page ' + num + ' render failed:', err);
+                });
+            }
+        });
+    }
+
+    function renderPage(num) {
+        if (!pdfDoc) return Promise.resolve();
+        var slot = slots[num - 1];
+        if (!slot) return Promise.resolve();
+
+        // Token-based cancellation: if zoom changes mid-render, the token
+        // for this page moves on and this render result gets discarded.
+        var myToken = {};
+        renderTokens.set(num, myToken);
+
+        return pdfDoc.getPage(num).then(function (page) {
+            var scale = baseScale * zoomFactor * (window.devicePixelRatio || 1);
+            var viewport = page.getViewport({ scale: scale });
+
+            var canvas = document.createElement('canvas');
+            canvas.width  = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            // CSS downscale the hi-DPI canvas to logical size (crisp on retina).
+            canvas.style.width  = '100%';
+            canvas.style.height = '100%';
+            canvas.className = 'block';
+
+            var ctx = canvas.getContext('2d', { alpha: false });
+
+            return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                // If we got pre-empted by a zoom, drop this result.
+                if (renderTokens.get(num) !== myToken) return;
+                slot.innerHTML = '';
+                slot.appendChild(canvas);
+                renderedPages.add(num);
+            });
+        });
+    }
+
+    // -- Zoom -------------------------------------------------------------
+    function applyZoom(newFactor) {
+        newFactor = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newFactor));
+        if (Math.abs(newFactor - zoomFactor) < 0.01) return;
+        zoomFactor = newFactor;
+
+        // Invalidate all rendered pages. Tokens will prevent stale renders.
+        renderedPages.clear();
+        renderTokens.clear();
+        slots.forEach(function (slot) {
+            slot.innerHTML =
+                '<div class="absolute inset-0 flex items-center justify-center text-xs text-slate-400">' +
+                'Page ' + slot.dataset.pageNum +
+                '</div>';
+        });
+
+        // Re-observe: currently-visible slots fire their intersection callback
+        // on re-observe, so pages in view get redrawn first.
+        if (observer) {
+            slots.forEach(function (s) { observer.unobserve(s); });
+            slots.forEach(function (s) { observer.observe(s); });
+        }
+    }
+
+    function handleResize() {
+        if (!pdfDoc) return;
+        pdfDoc.getPage(1).then(function (p) {
+            var unscaled = p.getViewport({ scale: 1 });
+            var newBase = computeFitWidthScale(unscaled.width);
+            if (Math.abs(newBase - baseScale) > 0.5) {
+                baseScale = newBase;
+                var currentZoom = zoomFactor;
+                // Jiggle to force invalidation, then restore.
+                zoomFactor = currentZoom + 0.0001;
+                applyZoom(currentZoom);
+            }
+        });
+    }
+
+    function computeFitWidthScale(unscaledWidth) {
+        // Leave room for inner padding (p-4 = 16px each side) + tiny safety margin.
+        var avail = Math.max(320, containerEl.clientWidth - 40);
+        return avail / unscaledWidth;
+    }
+
+    // -- Page counter tracking --------------------------------------------
+    function setupPageCounter() {
+        if (!('IntersectionObserver' in window)) return;
+        var counter = new IntersectionObserver(function () {
+            // On any intersection change, recompute the most-visible slot.
+            var top = { num: 1, ratio: 0 };
+            for (var i = 0; i < slots.length; i++) {
+                var slot = slots[i];
+                var rect = slot.getBoundingClientRect();
+                var visH = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
+                var ratio = visH / Math.max(1, rect.height);
+                if (ratio > top.ratio) {
+                    top = { num: parseInt(slot.dataset.pageNum, 10), ratio: ratio };
+                }
+            }
+            pageCurEl.textContent = String(top.num);
+        }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+        slots.forEach(function (s) { counter.observe(s); });
+    }
+
+    // -- Utils ------------------------------------------------------------
+    function debounce(fn, ms) {
+        var t;
+        return function () {
+            clearTimeout(t);
+            var args = arguments;
+            t = setTimeout(function () { fn.apply(null, args); }, ms);
+        };
+    }
+})();
+</script>
 
 {% endblock %}

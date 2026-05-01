@@ -2,10 +2,12 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Q
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.generic import DetailView, ListView
 
 from .models import Issue, Purchase
@@ -70,24 +72,27 @@ def _gate_or_none(request, issue: Issue):
 
     Returns ``None`` if the user is allowed through. Otherwise returns
     the appropriate HttpResponseRedirect:
-      * authenticated, no access  -> back to detail with a flash message
-      * anonymous                 -> /accounts/login/?next=<detail-url>
+      * anonymous                 -> 302 /accounts/login/?next=<current path>
+      * authenticated, no access  -> 302 back to detail with a flash message
 
     Centralised here so the reader page and the iframe PDF endpoint can
     never drift out of sync on access logic.
     """
     if issue.is_accessible_by(request.user):
         return None
-    if request.user.is_authenticated:
-        messages.info(
-            request,
-            f"You need to purchase '{issue.title}' before reading it.",
-        )
-        return redirect("issue_detail", slug=issue.slug)
-    # Anonymous: send to login with ?next=<detail page>. We point to
-    # detail (not the reader) so that a buyer has a clear next step
-    # (the Buy CTA) once authenticated.
-    return redirect_to_login(reverse("issue_detail", kwargs={"slug": issue.slug}))
+    # Anonymous FIRST: a logged-out user on a paid issue must *always* be
+    # bounced to login. Keeping next=<current-path> means the 302 preserves
+    # their original intent -- after logging in they return here, re-run
+    # the access check, and get routed appropriately.
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    # Authenticated but lacks a Purchase: bounce to the detail page (which
+    # renders the Buy CTA) with a flash so they know why they were moved.
+    messages.info(
+        request,
+        f"You need to purchase '{issue.title}' before reading it.",
+    )
+    return redirect("issue_detail", slug=issue.slug)
 
 
 class IssueReadView(View):
@@ -110,13 +115,32 @@ class IssueReadView(View):
         return render(request, "magazines/issue_read.html", {"issue": issue})
 
 
+@method_decorator(xframe_options_sameorigin, name="dispatch")
 class IssuePdfView(View):
     """
-    Gated PDF endpoint -- the actual signed-URL minter.
+    Gated PDF endpoint -- streams the file inline for the reader iframe.
 
-    Hit by the reader page's iframe. Performs the same access check as
-    :class:`IssueReadView`; only then calls ``issue.pdf_file.url`` and
-    302s the iframe to the (short-lived) signed URL.
+    Why we stream rather than 302-to-signed-URL (the previous approach):
+      1. The old 302 response got ``X-Frame-Options: DENY`` from Django's
+         ``XFrameOptionsMiddleware``. Browsers enforce XFO on every
+         response in a redirect chain, so the iframe refused to embed
+         the PDF at all -- result: blank iframe.
+      2. Even if the iframe could follow, ``django.views.static.serve``
+         (DEBUG media handler) doesn't set ``Content-Disposition``, which
+         Chrome/Edge treat as ambiguous and often downloads instead of
+         rendering inline.
+
+    ``FileResponse(..., as_attachment=False, content_type="application/pdf")``
+    fixes both: it sets ``Content-Disposition: inline; filename="..."``,
+    and the ``@xframe_options_sameorigin`` decorator overrides the DENY
+    header so our own same-origin reader iframe can load it.
+
+    PRODUCTION NOTE: When PrivateMediaStorage is backed by Supabase/S3,
+    this view still works (it streams through Django) but is bandwidth-
+    expensive -- every read proxies the file through our server. The
+    optimisation path is to 302 to a signed URL with query parameter
+    ``response-content-disposition=inline`` so the CDN sets it. Document
+    that swap when wiring real Supabase.
     """
 
     def get(self, request, slug: str):
@@ -126,7 +150,12 @@ class IssuePdfView(View):
             return gated
         if not issue.pdf_file:
             raise Http404("This issue has no PDF uploaded yet.")
-        return redirect(issue.pdf_file.url)
+        return FileResponse(
+            issue.pdf_file.open("rb"),
+            as_attachment=False,
+            filename=f"{issue.slug}.pdf",
+            content_type="application/pdf",
+        )
 
 
 class IssueBuyView(LoginRequiredMixin, View):

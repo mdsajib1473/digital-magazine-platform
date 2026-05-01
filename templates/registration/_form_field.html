@@ -11,9 +11,11 @@ apps/accounts/forms.py, so we only style the label / errors here.
     </label>
     {{ field }}
     {% if field.help_text %}
-        {# A <div> (not <p>) so that block-level help text -- e.g. the <ul>
-           that Django renders for password validators -- doesn't trigger an
-           auto-close on the parent and lose its inherited font size. #}
+        {% comment %}
+        A <div> (not <p>) so that block-level help text -- e.g. the <ul>
+        that Django renders for password validators -- doesn't trigger an
+        auto-close on the parent and lose its inherited font size.
+        {% endcomment %}
         <div class="mt-1 text-xs text-gray-500 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mt-1 [&_li]:mt-0.5">
             {{ field.help_text|safe }}
         </div>
