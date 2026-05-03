@@ -20,6 +20,12 @@
         {% include "registration/_form_field.html" with field=form.username %}
         {% include "registration/_form_field.html" with field=form.password %}
 
+        <div class="-mt-2 mb-4 text-right">
+            <a href="{% url 'password_reset' %}" class="text-xs font-medium text-indigo-600 hover:text-indigo-500">
+                Forgot password?
+            </a>
+        </div>
+
         {# Hidden ?next= passthrough so @login_required redirects work. #}
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 

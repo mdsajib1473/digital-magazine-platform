@@ -128,6 +128,24 @@ LOGOUT_REDIRECT_URL = "home"
 
 
 # ---------------------------------------------------------------------------
+# Email
+#
+# Local dev: print emails (including password-reset links) to the runserver
+# console. To switch to a real SMTP backend in production, override EMAIL_BACKEND
+# via .env to 'django.core.mail.backends.smtp.EmailBackend' and configure
+# EMAIL_HOST / EMAIL_PORT / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD / EMAIL_USE_TLS.
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
+DEFAULT_FROM_EMAIL = config(
+    "DEFAULT_FROM_EMAIL",
+    default="Unmad Archive <no-reply@unmadbd.com>",
+)
+
+
+# ---------------------------------------------------------------------------
 # Internationalization
 # ---------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"

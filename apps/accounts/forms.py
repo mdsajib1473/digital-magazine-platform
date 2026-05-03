@@ -1,6 +1,12 @@
 """Auth forms for the Unmad Digital Archive."""
+
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    PasswordResetForm,
+    SetPasswordForm,
+    UserCreationForm,
+)
 
 from .models import CustomUser
 
@@ -64,7 +70,13 @@ class CustomSignupForm(_TailwindFormMixin, UserCreationForm):
         """Reject duplicate emails proactively (the DB has no unique index)."""
         email = self.cleaned_data["email"].strip().lower()
         if CustomUser.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError(
-                "An account with this email already exists."
-            )
+            raise forms.ValidationError("An account with this email already exists.")
         return email
+
+
+class StyledPasswordResetForm(_TailwindFormMixin, PasswordResetForm):
+    """Password reset request form (email input) with Tailwind-styled input."""
+
+
+class StyledSetPasswordForm(_TailwindFormMixin, SetPasswordForm):
+    """Set-new-password form (two password inputs) with Tailwind-styled inputs."""
