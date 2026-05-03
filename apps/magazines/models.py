@@ -118,7 +118,26 @@ class Issue(models.Model):
 
 
 class Purchase(models.Model):
-    """A record of a single user paying for a single issue (pay-per-issue model)."""
+    """A record of a single user paying for a single issue (pay-per-issue model).
+
+    Lifecycle:
+      1. User clicks "Buy" -> we create a Purchase row with
+         payment_status=PENDING and a fresh transaction_id sent to the
+         payment gateway (SSLCommerz / bKash / etc).
+      2. The gateway IPN callback flips payment_status to SUCCESS or
+         FAILED; the same row is updated in place (the unique constraint
+         on (user, issue) means retries reuse the existing row).
+      3. ``Issue.is_accessible_by(user)`` then unlocks the PDF for any
+         Purchase row that exists -- callers wanting strict gating should
+         filter on payment_status=SUCCESS at query time.
+    """
+
+    class PaymentStatus(models.TextChoices):
+        """Mirrors the typical payment-gateway result vocabulary."""
+
+        PENDING = "Pending", "Pending"
+        SUCCESS = "Success", "Success"
+        FAILED = "Failed", "Failed"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -136,10 +155,26 @@ class Purchase(models.Model):
             "Independent of future Issue.price changes — preserves audit trail."
         ),
     )
-    purchase_date = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+        max_length=10,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+        help_text="Lifecycle of this purchase. Flipped by the gateway IPN.",
+    )
+    transaction_id = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text=(
+            "Gateway-side transaction reference (SSLCommerz tran_id, bKash "
+            "trxId, etc.). Nullable while a payment is still being initiated."
+        ),
+    )
+    purchased_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-purchase_date"]
+        ordering = ["-purchased_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "issue"],
@@ -150,4 +185,4 @@ class Purchase(models.Model):
         verbose_name_plural = "Purchases"
 
     def __str__(self) -> str:
-        return f"{self.user} -> {self.issue}"
+        return f"{self.user} -> {self.issue} ({self.payment_status})"

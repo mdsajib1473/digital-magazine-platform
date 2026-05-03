@@ -50,7 +50,7 @@ class LibraryView(LoginRequiredMixin, ListView):
         return (
             Purchase.objects.filter(user=self.request.user)
             .select_related("issue", "issue__category")
-            .order_by("-purchase_date")
+            .order_by("-purchased_at")
         )
 
 

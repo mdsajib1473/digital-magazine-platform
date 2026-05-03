@@ -50,15 +50,23 @@ class IssueAdmin(admin.ModelAdmin):
 
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):
-    list_display = ("user", "issue", "purchase_date")
-    list_filter = ("purchase_date", "issue__category")
+    list_display = (
+        "user",
+        "issue",
+        "payment_status",
+        "transaction_id",
+        "amount_paid",
+        "purchased_at",
+    )
+    list_filter = ("payment_status", "purchased_at", "issue__category")
     search_fields = (
         "user__username",
         "user__email",
         "issue__title",
+        "transaction_id",
     )
     autocomplete_fields = ("user", "issue")
-    date_hierarchy = "purchase_date"
-    readonly_fields = ("purchase_date",)
+    date_hierarchy = "purchased_at"
+    readonly_fields = ("purchased_at",)
     list_per_page = 50
     list_select_related = ("user", "issue")
