@@ -1,0 +1,34 @@
+{% load static tailwind_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Unmad BD &middot; Digital Archive{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Digital archive of Unmad Magazine — browse and read every issue.{% endblock %}">
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    {% tailwind_css %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased">
+    {% include "includes/_navbar.html" %}
+
+    {% if messages %}
+        <div class="max-w-6xl mx-auto w-full px-4 mt-4 space-y-2">
+            {% for message in messages %}
+                <div class="rounded-md border px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-800{% elif message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-slate-50 border-slate-200 text-slate-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% include "includes/_footer.html" %}
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
