@@ -106,7 +106,10 @@ class Issue(models.Model):
         """Whether ``user`` is allowed to read the PDF of this issue.
 
         Free issues are open to everyone (incl. anonymous). Paid issues
-        require either staff status or a Purchase row for this user.
+        require either staff status or a *successfully paid* Purchase row
+        for this user -- rows in PENDING or FAILED status do NOT unlock
+        the PDF, which closes the obvious hole where a user could start
+        a payment, abandon it, and still read the content.
         """
         if self.is_free:
             return True
@@ -114,7 +117,10 @@ class Issue(models.Model):
             return False
         if user.is_staff:
             return True
-        return self.purchases.filter(user=user).exists()
+        return self.purchases.filter(
+            user=user,
+            payment_status=Purchase.PaymentStatus.SUCCESS,
+        ).exists()
 
 
 class Purchase(models.Model):

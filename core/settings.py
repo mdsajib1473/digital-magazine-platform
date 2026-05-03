@@ -146,6 +146,26 @@ DEFAULT_FROM_EMAIL = config(
 
 
 # ---------------------------------------------------------------------------
+# SSLCommerz (payment gateway)
+#
+# Local/dev defaults point at the public sandbox credentials published by
+# SSLCommerz (testbox / testpassword@ssl). In production, override all three
+# via .env with the merchant's real STORE_ID + STORE_PASS and set
+# SSLCOMMERZ_IS_SANDBOX=False.
+#
+# Usage:
+#     from django.conf import settings
+#     from sslcommerz_lib import SSLCOMMERZ
+#     sslcz = SSLCOMMERZ(settings.SSLCOMMERZ)
+# ---------------------------------------------------------------------------
+SSLCOMMERZ = {
+    "store_id": config("SSLCOMMERZ_STORE_ID", default="testbox"),
+    "store_pass": config("SSLCOMMERZ_STORE_PASS", default="testpassword@ssl"),
+    "issandbox": config("SSLCOMMERZ_IS_SANDBOX", default=True, cast=bool),
+}
+
+
+# ---------------------------------------------------------------------------
 # Internationalization
 # ---------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"

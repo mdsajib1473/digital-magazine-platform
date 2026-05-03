@@ -1,3 +1,6 @@
+import uuid
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
@@ -8,7 +11,10 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, ListView
+from sslcommerz_lib import SSLCOMMERZ
 
 from .models import Issue, Purchase
 
@@ -240,13 +246,43 @@ class IssuePdfView(View):
         return resp
 
 
-class IssueBuyView(LoginRequiredMixin, View):
-    """
-    Placeholder purchase endpoint until a real payment gateway is wired.
+# ---------------------------------------------------------------------------
+# Payment flow (SSLCommerz)
+#
+# Lifecycle:
+#   1. User POSTs /issues/<slug>/buy/  -> IssueBuyView.post()
+#      - creates/refreshes a PENDING Purchase row with a fresh UUID tran_id
+#      - asks SSLCommerz to start a session (createSession)
+#      - redirects the user's browser to the returned GatewayPageURL
+#   2. User pays on SSLCommerz; they're POST-redirected back to ONE of:
+#        /payment/success/  -> payment_success (status=VALID)
+#        /payment/fail/     -> payment_fail    (status=FAILED)
+#        /payment/cancel/   -> payment_cancel  (user aborted)
+#   3. Each callback validates the POST body's hash, updates the Purchase
+#      row's payment_status, and bounces the user to their library (on
+#      success) or the issue detail page (on fail/cancel) with a flash.
+#
+# Security:
+#   - All 3 callbacks are @csrf_exempt (no Django CSRF token in
+#     SSLCommerz's cross-origin POST) BUT protected by hash_validate_ipn,
+#     which recomputes the MD5 signature from store_pass + payload. An
+#     attacker forging a POST without the real store_pass fails the hash.
+#   - Amount + currency are re-checked server-side against the stored
+#     Purchase row -- prevents a tampered POST with amount=1 BDT.
+#   - We look up Purchase by tran_id (a UUID we generated), not by user
+#     session -- the browser in the callback may legitimately be mid-
+#     session-rotation after the payment flow.
+# ---------------------------------------------------------------------------
 
-    POST-only (creating purchases via GET would be CSRF/idempotency hell).
-    Idempotent thanks to UniqueConstraint(user, issue) -> get_or_create
-    silently no-ops on a duplicate.
+
+class IssueBuyView(LoginRequiredMixin, View):
+    """Initiate an SSLCommerz payment session for ``issue``.
+
+    POST-only (GET would be CSRF/idempotency hell). Idempotent across
+    retries: ``update_or_create`` rewrites a previously-Failed or Pending
+    row in place, giving it a fresh transaction_id so the gateway treats
+    each attempt as a new session. Existing SUCCESS rows short-circuit to
+    the reader -- a user who already paid is never billed twice.
     """
 
     http_method_names = ["post"]
@@ -254,21 +290,204 @@ class IssueBuyView(LoginRequiredMixin, View):
     def post(self, request, slug: str):
         issue = get_object_or_404(Issue, slug=slug)
 
+        # Free issues never hit the gateway -- they're readable by anyone.
         if issue.is_free:
             messages.info(request, "This issue is free — no purchase needed.")
             return redirect("issue_read", slug=slug)
 
-        purchase, created = Purchase.objects.get_or_create(
+        # Already-paid short-circuit. Mirrors is_accessible_by() semantics
+        # (SUCCESS-only) so an abandoned Pending row doesn't block a retry.
+        already_paid = Purchase.objects.filter(
             user=request.user,
             issue=issue,
-            defaults={"amount_paid": issue.price},
-        )
-        if created:
-            messages.success(
-                request,
-                f"Purchase confirmed! Enjoy '{issue.title}'.",
-            )
-        else:
+            payment_status=Purchase.PaymentStatus.SUCCESS,
+        ).exists()
+        if already_paid:
             messages.info(request, "You already own this issue.")
+            return redirect("issue_read", slug=slug)
 
-        return redirect("issue_read", slug=slug)
+        # Fresh UUID per attempt. Using uuid4 (not uuid1) so we don't leak
+        # the server's MAC address in the gateway trail.
+        tran_id = str(uuid.uuid4())
+
+        # update_or_create reuses the row for this (user, issue) pair --
+        # required because UniqueConstraint(user, issue) would reject a
+        # second create() on retry. The previous tran_id is overwritten.
+        Purchase.objects.update_or_create(
+            user=request.user,
+            issue=issue,
+            defaults={
+                "amount_paid": issue.price,
+                "payment_status": Purchase.PaymentStatus.PENDING,
+                "transaction_id": tran_id,
+            },
+        )
+
+        # Build absolute callback URLs -- SSLCommerz POSTs the user's
+        # browser back to these, so they must be reachable from the
+        # browser (localhost:8000 is fine for sandbox testing).
+        success_url = request.build_absolute_uri(reverse("payment_success"))
+        fail_url = request.build_absolute_uri(reverse("payment_fail"))
+        cancel_url = request.build_absolute_uri(reverse("payment_cancel"))
+
+        # Customer info: prefer real values, fall back to safe placeholders.
+        # SSLCommerz rejects the session if any of these are missing.
+        user = request.user
+        full_name = (f"{user.first_name} {user.last_name}").strip() or user.username
+
+        post_body = {
+            "total_amount": issue.price,
+            "currency": "BDT",
+            "tran_id": tran_id,
+            "success_url": success_url,
+            "fail_url": fail_url,
+            "cancel_url": cancel_url,
+            "emi_option": 0,
+            # Customer
+            "cus_name": full_name,
+            "cus_email": user.email or "noemail@unmadbd.com",
+            "cus_phone": user.phone_number or "N/A",
+            "cus_add1": "N/A",
+            "cus_city": "Dhaka",
+            "cus_country": "Bangladesh",
+            # Digital goods -- no shipping, but the fields are required.
+            "shipping_method": "NO",
+            "num_of_item": 1,
+            "product_name": issue.title[:50],
+            "product_category": "Magazine",
+            "product_profile": "non-physical-goods",
+        }
+
+        sslcz = SSLCOMMERZ(settings.SSLCOMMERZ)
+        response = sslcz.createSession(post_body)
+
+        # createSession() returns None on *any* exception (the lib swallows
+        # them internally). Defensive-code the None + the explicit FAILED
+        # status so the user never lands on a broken gateway page.
+        if not response or response.get("status") != "SUCCESS":
+            messages.error(
+                request,
+                "We couldn't start the payment. Please try again in a moment.",
+            )
+            return redirect("issue_detail", slug=slug)
+
+        gateway_url = response.get("GatewayPageURL")
+        if not gateway_url:
+            messages.error(
+                request,
+                "Payment gateway returned an invalid response. Please try again.",
+            )
+            return redirect("issue_detail", slug=slug)
+
+        return redirect(gateway_url)
+
+
+def _validate_and_lookup(request) -> "tuple[Purchase | None, str]":
+    """Shared callback pre-amble: validate SSLCommerz hash + load Purchase.
+
+    Returns ``(purchase, error_message)``:
+      - ``(purchase, "")`` on success
+      - ``(None, "<why>")`` on any failure (hash mismatch, unknown tran_id,
+        missing field). Callers redirect with ``messages.error`` using the
+        returned string.
+
+    Kept deliberately silent about *which* check failed -- we don't want
+    to help an attacker narrow down what to forge next.
+    """
+    tran_id = request.POST.get("tran_id")
+    if not tran_id:
+        return None, "Invalid payment callback."
+
+    # Authenticity check: SSLCommerz recomputes an MD5 over a canonical
+    # subset of its own POST + our store_pass. If this doesn't match, the
+    # POST isn't from them and we MUST NOT update any row.
+    sslcz = SSLCOMMERZ(settings.SSLCOMMERZ)
+    if not sslcz.hash_validate_ipn(request.POST.dict()):
+        return None, "Payment could not be verified."
+
+    try:
+        purchase = Purchase.objects.select_related("issue", "user").get(
+            transaction_id=tran_id
+        )
+    except Purchase.DoesNotExist:
+        return None, "Payment could not be verified."
+
+    return purchase, ""
+
+
+@csrf_exempt
+@require_POST
+def payment_success(request):
+    """SSLCommerz success callback. Flip the Purchase row to SUCCESS."""
+    purchase, err = _validate_and_lookup(request)
+    if purchase is None:
+        messages.error(request, err)
+        return redirect("home")
+
+    # Idempotency: if the IPN already flipped us (or the user refreshed),
+    # don't double-update -- just send them to their library.
+    if purchase.payment_status == Purchase.PaymentStatus.SUCCESS:
+        messages.info(request, f"You already own '{purchase.issue.title}'.")
+        return redirect("library")
+
+    # Amount tamper check. SSLCommerz echoes back what it charged the
+    # card; we compare against what we told it to charge.
+    try:
+        paid_amount = float(request.POST.get("amount", "0"))
+    except (TypeError, ValueError):
+        paid_amount = 0.0
+    if (
+        paid_amount < float(purchase.amount_paid)
+        or request.POST.get("currency") != "BDT"
+    ):
+        purchase.payment_status = Purchase.PaymentStatus.FAILED
+        purchase.save(update_fields=["payment_status"])
+        messages.error(request, "Payment amount mismatch; your card was NOT charged.")
+        return redirect("issue_detail", slug=purchase.issue.slug)
+
+    purchase.payment_status = Purchase.PaymentStatus.SUCCESS
+    purchase.save(update_fields=["payment_status"])
+    messages.success(
+        request,
+        f"Payment successful! '{purchase.issue.title}' has been added to your library.",
+    )
+    return redirect("library")
+
+
+@csrf_exempt
+@require_POST
+def payment_fail(request):
+    """SSLCommerz fail callback. Flip the Purchase row to FAILED."""
+    purchase, err = _validate_and_lookup(request)
+    if purchase is None:
+        messages.error(request, err)
+        return redirect("home")
+
+    # Don't clobber a SUCCESS row -- the user already owns the issue; a
+    # stale Fail POST (e.g. retry of a race) shouldn't revoke access.
+    if purchase.payment_status != Purchase.PaymentStatus.SUCCESS:
+        purchase.payment_status = Purchase.PaymentStatus.FAILED
+        purchase.save(update_fields=["payment_status"])
+
+    messages.error(
+        request,
+        "Your payment could not be completed. You can try again below.",
+    )
+    return redirect("issue_detail", slug=purchase.issue.slug)
+
+
+@csrf_exempt
+@require_POST
+def payment_cancel(request):
+    """SSLCommerz cancel callback. User aborted -- leave row PENDING."""
+    purchase, err = _validate_and_lookup(request)
+    if purchase is None:
+        messages.info(request, "Payment was cancelled.")
+        return redirect("home")
+
+    # We intentionally do NOT flip the row to FAILED on cancel -- the
+    # user may just be reconsidering. The PENDING row is harmless: the
+    # access check requires SUCCESS, and a retry will overwrite this row
+    # via update_or_create with a fresh tran_id.
+    messages.info(request, "Payment cancelled — no charge was made.")
+    return redirect("issue_detail", slug=purchase.issue.slug)

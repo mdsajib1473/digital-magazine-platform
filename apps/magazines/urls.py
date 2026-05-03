@@ -11,6 +11,9 @@ from .views import (
     IssueListView,
     IssuePdfView,
     IssueReadView,
+    payment_cancel,
+    payment_fail,
+    payment_success,
 )
 
 urlpatterns = [
@@ -37,4 +40,10 @@ urlpatterns = [
         IssueBuyView.as_view(),
         name="issue_buy",
     ),
+    # SSLCommerz callbacks. These receive POST from the gateway; they must
+    # NOT be slug-scoped because the callback looks up the Purchase row by
+    # transaction_id (which SSLCommerz echoes back in the POST body).
+    path("payment/success/", payment_success, name="payment_success"),
+    path("payment/fail/", payment_fail, name="payment_fail"),
+    path("payment/cancel/", payment_cancel, name="payment_cancel"),
 ]
