@@ -12,21 +12,24 @@ listed earlier wins.
 
 from django.contrib.auth.views import (
     LoginView,
+    PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetView,
 )
-from django.urls import include, path
+from django.urls import include, path, reverse_lazy
 
 from .forms import (
     StyledAuthenticationForm,
+    StyledPasswordChangeForm,
     StyledPasswordResetForm,
     StyledSetPasswordForm,
 )
-from .views import LibraryView, SignupView
+from .views import LibraryView, ProfileView, SignupView
 
 urlpatterns = [
     path("signup/", SignupView.as_view(), name="signup"),
     path("library/", LibraryView.as_view(), name="library"),
+    path("profile/", ProfileView.as_view(), name="profile"),
     # Override the stock login view so we can swap in the styled form.
     path(
         "login/",
@@ -47,7 +50,18 @@ urlpatterns = [
         PasswordResetConfirmView.as_view(form_class=StyledSetPasswordForm),
         name="password_reset_confirm",
     ),
-    # Delegate the rest (logout, password_change, password_reset_done,
+    # Password change (logged-in flow): three password inputs. Styled form
+    # + explicit success_url so the done page can reverse() cleanly even
+    # though we keep the default template_name.
+    path(
+        "password_change/",
+        PasswordChangeView.as_view(
+            form_class=StyledPasswordChangeForm,
+            success_url=reverse_lazy("password_change_done"),
+        ),
+        name="password_change",
+    ),
+    # Delegate the rest (logout, password_change_done, password_reset_done,
     # password_reset_complete, ...) to the default contrib.auth URLConf.
     path("", include("django.contrib.auth.urls")),
 ]

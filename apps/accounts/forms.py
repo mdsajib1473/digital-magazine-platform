@@ -3,6 +3,7 @@
 from django import forms
 from django.contrib.auth.forms import (
     AuthenticationForm,
+    PasswordChangeForm,
     PasswordResetForm,
     SetPasswordForm,
     UserCreationForm,
@@ -51,9 +52,14 @@ class CustomSignupForm(_TailwindFormMixin, UserCreationForm):
     - phone_number stays optional, matching the model.
     """
 
+    # Explicitly required -- password reset + purchase receipts both depend on
+    # having an email on file, so we enforce it at the form level even though
+    # AbstractUser.email allows blank.
     email = forms.EmailField(
         required=True,
-        help_text="Used for password reset and purchase receipts.",
+        label="Email address",
+        help_text="Required. Used for password reset and purchase receipts.",
+        widget=forms.EmailInput(attrs={"placeholder": "you@example.com"}),
     )
     phone_number = forms.CharField(
         required=False,
@@ -80,3 +86,42 @@ class StyledPasswordResetForm(_TailwindFormMixin, PasswordResetForm):
 
 class StyledSetPasswordForm(_TailwindFormMixin, SetPasswordForm):
     """Set-new-password form (two password inputs) with Tailwind-styled inputs."""
+
+
+class StyledPasswordChangeForm(_TailwindFormMixin, PasswordChangeForm):
+    """Logged-in password change form with Tailwind-styled inputs."""
+
+
+class UserProfileForm(_TailwindFormMixin, forms.ModelForm):
+    """Let authenticated users edit their own contact details.
+
+    Email is kept required here (mirrors signup) because password reset and
+    future purchase receipts both depend on a valid address being on file.
+    Username is intentionally NOT editable -- changing it would invalidate
+    saved URLs and support requests.
+    """
+
+    email = forms.EmailField(
+        required=True,
+        label="Email address",
+        help_text="Required. Used for password reset and purchase receipts.",
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = ("email", "first_name", "last_name", "phone_number")
+        labels = {
+            "first_name": "First name",
+            "last_name": "Last name",
+            "phone_number": "Phone number",
+        }
+
+    def clean_email(self):
+        """Reject duplicates, but let the current user keep their own email."""
+        email = self.cleaned_data["email"].strip().lower()
+        qs = CustomUser.objects.filter(email__iexact=email)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email

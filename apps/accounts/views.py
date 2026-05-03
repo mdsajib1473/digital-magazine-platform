@@ -1,11 +1,12 @@
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, ListView
+from django.views.generic import CreateView, ListView, UpdateView
 
 from apps.magazines.models import Purchase
 
-from .forms import CustomSignupForm
+from .forms import CustomSignupForm, UserProfileForm
 
 
 class SignupView(CreateView):
@@ -51,3 +52,27 @@ class LibraryView(LoginRequiredMixin, ListView):
             .select_related("issue", "issue__category")
             .order_by("-purchase_date")
         )
+
+
+class ProfileView(LoginRequiredMixin, UpdateView):
+    """Let an authenticated user edit their own contact details.
+
+    Key invariants:
+      - ``get_object()`` returns ``self.request.user`` -- a user can only
+        ever edit their own profile; path-based tampering is impossible
+        because we never read a pk/slug from the URL.
+      - ``success_url`` points back at the profile page so the user sees
+        the updated values and the success flash.
+    """
+
+    form_class = UserProfileForm
+    template_name = "accounts/profile.html"
+    success_url = reverse_lazy("profile")
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Your profile has been updated.")
+        return response
