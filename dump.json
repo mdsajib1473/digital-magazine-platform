@@ -1,0 +1,222 @@
+[
+{
+  "model": "accounts.customuser",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$jY7PCNGIQweu7JAP3XUwTR$jzyWlBf8wdJEbmw6qoLPCvKwBO325mfXpu3cK/F7lG0=",
+    "last_login": "2026-05-04T19:23:07.980Z",
+    "is_superuser": true,
+    "username": "mdsajib1473",
+    "first_name": "",
+    "last_name": "",
+    "email": "mdsajibahammad1473@duck.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-04-29T10:13:43.001Z",
+    "phone_number": null,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.customuser",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$Ph0c14dcKwqTRRjJ6jkUn2$z+hybuHG8EWLTYlu6IOvF18rZCmJ6cOCNQaDW62ULZE=",
+    "last_login": "2026-05-04T12:17:35.374Z",
+    "is_superuser": false,
+    "username": "nabil123",
+    "first_name": "Nabil",
+    "last_name": "Ahmed",
+    "email": "mrace1@duck.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-30T23:08:15.006Z",
+    "phone_number": null,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "magazines.category",
+  "pk": 4,
+  "fields": {
+    "name": "Free"
+  }
+},
+{
+  "model": "magazines.category",
+  "pk": 5,
+  "fields": {
+    "name": "Paid"
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 6,
+  "fields": {
+    "title": "One Punch Man",
+    "slug": "one-punch-man",
+    "issue_number": 225,
+    "cover_image": "covers/Screenshot_2026-05-01_051301.png",
+    "pdf_file": "pdfs/Chapter_225.pdf",
+    "category": 4,
+    "published_date": "2026-05-01",
+    "description": "The pdf of the manga of One Punch Man",
+    "is_free": true,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 7,
+  "fields": {
+    "title": "One Punch Man",
+    "slug": "one-punch-man-2",
+    "issue_number": 226,
+    "cover_image": "covers/Screenshot_2026-05-01_051550.png",
+    "pdf_file": "pdfs/Chapter_226.pdf",
+    "category": 4,
+    "published_date": "2026-05-01",
+    "description": "Read the famous One Punch Man manga (free version)",
+    "is_free": true,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 8,
+  "fields": {
+    "title": "One Punch Man",
+    "slug": "one-punch-man-3",
+    "issue_number": 227,
+    "cover_image": "covers/Screenshot_2026-05-01_051739.png",
+    "pdf_file": "pdfs/Chapter_227.pdf",
+    "category": 5,
+    "published_date": "2026-05-01",
+    "description": "Paid manga of OPM",
+    "is_free": false,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 9,
+  "fields": {
+    "title": "One Punch Man",
+    "slug": "one-punch-man-4",
+    "issue_number": 229,
+    "cover_image": "covers/Screenshot_2026-05-01_052025.png",
+    "pdf_file": "pdfs/Chapter_229.pdf",
+    "category": 5,
+    "published_date": "2026-05-01",
+    "description": "Paid manga of the OPM",
+    "is_free": false,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 28,
+  "fields": {
+    "title": "Death Note",
+    "slug": "death-note",
+    "issue_number": 2,
+    "cover_image": "covers/2.jpg",
+    "pdf_file": "pdfs/Manga_Universe_Chapter_2.pdf",
+    "category": 4,
+    "published_date": "2026-05-04",
+    "description": "",
+    "is_free": true,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 29,
+  "fields": {
+    "title": "Death Note",
+    "slug": "death-note-2",
+    "issue_number": 3,
+    "cover_image": "covers/3.jpg",
+    "pdf_file": "pdfs/Manga_Universe_Chapter_3.pdf",
+    "category": 4,
+    "published_date": "2026-05-04",
+    "description": "",
+    "is_free": true,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 30,
+  "fields": {
+    "title": "Death Note",
+    "slug": "death-note-3",
+    "issue_number": 4,
+    "cover_image": "covers/4.jpg",
+    "pdf_file": "pdfs/Manga_Universe_Chapter_4.pdf",
+    "category": 5,
+    "published_date": "2026-05-04",
+    "description": "",
+    "is_free": false,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.issue",
+  "pk": 31,
+  "fields": {
+    "title": "Death Note",
+    "slug": "death-note-4",
+    "issue_number": 5,
+    "cover_image": "covers/5.jpg",
+    "pdf_file": "pdfs/Manga_Universe_Chapter_5.pdf",
+    "category": 5,
+    "published_date": "2026-05-04",
+    "description": "",
+    "is_free": false,
+    "price": 20
+  }
+},
+{
+  "model": "magazines.purchase",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "nabil123"
+    ],
+    "issue": 8,
+    "amount_paid": 20,
+    "payment_status": "Pending",
+    "transaction_id": "aa68af5a-a3a9-4820-a3d4-8edee20902fc",
+    "purchased_at": "2026-04-30T23:25:43.842Z"
+  }
+},
+{
+  "model": "magazines.purchase",
+  "pk": 4,
+  "fields": {
+    "user": [
+      "nabil123"
+    ],
+    "issue": 31,
+    "amount_paid": 20,
+    "payment_status": "Success",
+    "transaction_id": "6e675519-046a-4e23-a1d7-01b0c7f11cf4",
+    "purchased_at": "2026-05-03T19:45:56.661Z"
+  }
+},
+{
+  "model": "magazines.purchase",
+  "pk": 5,
+  "fields": {
+    "user": [
+      "nabil123"
+    ],
+    "issue": 30,
+    "amount_paid": 20,
+    "payment_status": "Pending",
+    "transaction_id": "4d2dded2-e1d9-4764-87bd-6e803ac31546",
+    "purchased_at": "2026-05-03T19:46:36.018Z"
+  }
+}
+]
