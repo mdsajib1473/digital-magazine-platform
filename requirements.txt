@@ -8,6 +8,7 @@ charset-normalizer==3.4.7
 click==8.3.3
 colorama==0.4.6
 cookiecutter==2.7.1
+dj-database-url==3.1.2
 Django==5.2.13
 django-browser-reload==1.21.0
 django-jazzmin==3.0.4
@@ -20,6 +21,7 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
 pillow==12.2.0
+psycopg2-binary==2.9.12
 Pygments==2.20.0
 pytailwindcss==0.3.0
 python-dateutil==2.9.0.post0

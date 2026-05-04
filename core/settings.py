@@ -7,6 +7,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 
 from pathlib import Path
 
+import dj_database_url
 from decouple import Csv, config
 
 # ---------------------------------------------------------------------------
@@ -98,13 +99,33 @@ TEMPLATES = [
 
 
 # ---------------------------------------------------------------------------
-# Database (SQLite locally; switch to Postgres in production via env vars)
+# Database
+#
+# Resolution order (handled by the nested config() / dj_database_url calls):
+#   1. DATABASE_URL in .env or os.environ -> parsed by dj_database_url
+#      (e.g. postgres://user:pass@host:5432/dbname for Supabase).
+#   2. Fallback to a local SQLite file at BASE_DIR/db.sqlite3, so a fresh
+#      checkout without a populated .env still boots.
+#
+# Tuning kwargs (recommended for any remote Postgres, including Supabase):
+#   - conn_max_age=600   keeps connections alive across requests for 10 min;
+#                        without it Django opens a fresh TCP+TLS handshake on
+#                        every request, which adds ~100-300 ms latency to a
+#                        Supabase round-trip.
+#   - conn_health_checks=True   issues a quick SELECT 1 before reusing a
+#                        pooled connection, dodging the "server closed the
+#                        connection unexpectedly" error after Supabase prunes
+#                        an idle backend.
 # ---------------------------------------------------------------------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=config(
+            "DATABASE_URL",
+            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        ),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
