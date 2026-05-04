@@ -159,11 +159,10 @@ DEFAULT_FROM_EMAIL = config(
 #     sslcz = SSLCOMMERZ(settings.SSLCOMMERZ)
 # ---------------------------------------------------------------------------
 SSLCOMMERZ = {
-    "store_id": config("SSLCOMMERZ_STORE_ID", default="testbox"),
-    "store_pass": config("SSLCOMMERZ_STORE_PASS", default="testpassword@ssl"),
-    "issandbox": config("SSLCOMMERZ_IS_SANDBOX", default=True, cast=bool),
+    "store_id": "farm269e000247c71a",
+    "store_pass": "farm269e000247c71a@ssl",
+    "issandbox": True,
 }
-
 
 # ---------------------------------------------------------------------------
 # Internationalization

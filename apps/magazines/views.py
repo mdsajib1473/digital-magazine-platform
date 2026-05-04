@@ -335,6 +335,13 @@ class IssueBuyView(LoginRequiredMixin, View):
         user = request.user
         full_name = (f"{user.first_name} {user.last_name}").strip() or user.username
 
+        # Payload mandatory-field hardening:
+        # - cus_phone needs a Bangladesh-format number; literal "N/A" fails
+        #   the gateway's phone regex even though the docs claim it's optional.
+        # - product_profile must be one of the canonical SSLCommerz values;
+        #   "general" is the most permissive and avoids category-mapping pitfalls.
+        # - cus_email / cus_add1 fall back to plausible dummy strings rather
+        #   than empty / "N/A" so the validator doesn't reject the session.
         post_body = {
             "total_amount": issue.price,
             "currency": "BDT",
@@ -343,23 +350,28 @@ class IssueBuyView(LoginRequiredMixin, View):
             "fail_url": fail_url,
             "cancel_url": cancel_url,
             "emi_option": 0,
-            # Customer
+            # Customer (with safe fallbacks for missing user data)
             "cus_name": full_name,
-            "cus_email": user.email or "noemail@unmadbd.com",
-            "cus_phone": user.phone_number or "N/A",
-            "cus_add1": "N/A",
+            "cus_email": user.email or "dummy@example.com",
+            "cus_phone": user.phone_number or "01700000000",
+            "cus_add1": "Dhaka",
             "cus_city": "Dhaka",
             "cus_country": "Bangladesh",
             # Digital goods -- no shipping, but the fields are required.
             "shipping_method": "NO",
             "num_of_item": 1,
-            "product_name": issue.title[:50],
+            "product_name": issue.title,
             "product_category": "Magazine",
-            "product_profile": "non-physical-goods",
+            "product_profile": "general",
         }
 
         sslcz = SSLCOMMERZ(settings.SSLCOMMERZ)
         response = sslcz.createSession(post_body)
+
+        # Debug logging: surfaces the gateway's exact rejection reason
+        # (look for `failedreason` in the dict) in the runserver terminal.
+        # Remove once the sandbox flow is confirmed working end-to-end.
+        # print("SSLCOMMERZ RESPONSE:", response)
 
         # createSession() returns None on *any* exception (the lib swallows
         # them internally). Defensive-code the None + the explicit FAILED
