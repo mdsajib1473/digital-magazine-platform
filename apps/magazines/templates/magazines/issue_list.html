@@ -10,11 +10,11 @@
 {# Hero / search                                                           #}
 {# ----------------------------------------------------------------------- #}
 <section class="text-center py-10 sm:py-14">
-    <p class="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-widest text-indigo-700 bg-indigo-100 rounded-full">
+    <p class="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-widest text-red-700 bg-red-100 rounded-full">
         Digital Archive
     </p>
     <h1 class="mt-5 text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
-        The complete <span class="text-indigo-600">Unmad</span> collection
+        The complete <span class="text-[#bc1d23]">Unmad</span> collection
     </h1>
     <p class="mt-4 max-w-2xl mx-auto text-base sm:text-lg text-slate-600">
         Decades of satire, comics, and culture from Bangladesh's most beloved magazine —
@@ -37,11 +37,11 @@
                 value="{{ search_query }}"
                 placeholder="Search by title or description…"
                 autocomplete="off"
-                class="w-full pl-12 pr-28 py-3 text-base bg-white border border-slate-200 rounded-full shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                class="w-full pl-12 pr-28 py-3 text-base bg-white border border-slate-200 rounded-full shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#bc1d23] focus:border-transparent transition"
             >
             <button
                 type="submit"
-                class="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-full hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
+                class="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2 text-sm font-semibold text-white bg-[#bc1d23] rounded-full hover:bg-[#a3161b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#bc1d23] transition"
             >
                 Search
             </button>
@@ -92,16 +92,22 @@
                     </div>
                 {% endif %}
 
-                {# Free / price badge - top-right #}
+                {% comment %}
+                Free / price badge - top-right. Solid white pill keeps the
+                text readable over the cover image; the LABEL TEXT itself
+                uses a blue->cyan gradient via bg-clip-text for a subtle
+                accent. The dot indicator on the Free pill matches the
+                gradient.
+                {% endcomment %}
                 <div class="absolute top-3 right-3">
                     {% if issue.is_free %}
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200/60 shadow-sm">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Free
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/95 ring-1 ring-blue-200 shadow-sm">
+                            <span class="w-1.5 h-1.5 rounded-full bg-linear-to-r from-blue-500 to-cyan-500"></span>
+                            <span class="bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">Free</span>
                         </span>
                     {% else %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/95 text-slate-900 ring-1 ring-slate-200 shadow-sm">
-                            ৳{{ issue.price }} BDT
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/95 ring-1 ring-blue-200 shadow-sm">
+                            <span class="bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">৳{{ issue.price }} BDT</span>
                         </span>
                     {% endif %}
                 </div>
@@ -109,7 +115,7 @@
 
             {# Body #}
             <div class="flex flex-col flex-1 p-4">
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-indigo-600">
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-[#bc1d23]">
                     {{ issue.category.name }}
                 </p>
                 <h3 class="mt-1 text-base font-semibold text-slate-900 line-clamp-2">
@@ -133,9 +139,16 @@
                             Pay-per-issue
                         {% endif %}
                     </span>
-                    <span class="text-sm font-medium text-indigo-600 group-hover:text-indigo-500 inline-flex items-center gap-1">
-                        Open
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 transition-transform group-hover:translate-x-0.5">
+                    {% comment %}
+                    'Open ->' link: gradient text on the word + matching
+                    solid blue arrow. The arrow can't share the gradient
+                    (bg-clip-text + text-transparent would hide an SVG
+                    that paints via stroke=currentColor), so we color it
+                    text-blue-500 to anchor the gradient's start hue.
+                    {% endcomment %}
+                    <span class="text-sm font-medium inline-flex items-center gap-1">
+                        <span class="bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">Open</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-blue-500 transition-transform group-hover:translate-x-0.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
                         </svg>
                     </span>

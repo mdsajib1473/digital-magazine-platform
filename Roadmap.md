@@ -1,4 +1,4 @@
-# Roadmap.md: Unmad BD - Solo Developer (Zero-Budget) Launch Plan
+# Roadmap.md: Unmad BD
 
 ## Phase 1: Auth Completion & User Profile (Current)
 *   **Password Reset Flow:** Django templates and logic for password recovery.
