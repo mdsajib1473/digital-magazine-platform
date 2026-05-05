@@ -6,6 +6,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 """
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 import dj_database_url
 from decouple import Csv, config
@@ -237,6 +238,25 @@ if USE_SUPABASE_STORAGE:
         "signature_version": "s3v4",
     }
 
+    # Top-level fallback: applies to any S3Storage instance that doesn't get
+    # an explicit `addressing_style` via STORAGES OPTIONS (defence-in-depth
+    # for future buckets / third-party libs that read globals directly).
+    AWS_S3_ADDRESSING_STYLE = "path"
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+
+    # Public read URLs for the public bucket must use Supabase's native
+    # /storage/v1/object/public/<bucket>/ path, NOT the S3 API path. Otherwise
+    # browsers hit the raw S3 endpoint, which requires an X-Amz-* signature
+    # for every read and 400s on plain <img src> requests.
+    #
+    # The host is the same as the S3 endpoint host -- only the path prefix
+    # differs ("/storage/v1/s3" -> "/storage/v1/object/public/<bucket>"), so
+    # we derive it from SUPABASE_S3_ENDPOINT_URL to keep .env single-sourced.
+    _supabase_host = urlparse(SUPABASE_S3_ENDPOINT_URL).netloc
+    SUPABASE_PUBLIC_URL_DOMAIN = (
+        f"{_supabase_host}/storage/v1/object/public/{SUPABASE_PUBLIC_BUCKET}"
+    )
+
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -249,6 +269,12 @@ if USE_SUPABASE_STORAGE:
             "OPTIONS": {
                 **_SUPABASE_S3_COMMON,
                 "bucket_name": SUPABASE_PUBLIC_BUCKET,
+                # When custom_domain is set, .url() returns
+                #   https://<custom_domain>/<key>
+                # bypassing the S3 read path entirely. Uploads still go via
+                # endpoint_url + bucket_name (the S3 API) -- only URL output
+                # is affected.
+                "custom_domain": SUPABASE_PUBLIC_URL_DOMAIN,
             },
         },
         "private_media": {
@@ -257,6 +283,9 @@ if USE_SUPABASE_STORAGE:
                 **_SUPABASE_S3_COMMON,
                 "bucket_name": SUPABASE_PRIVATE_BUCKET,
                 "querystring_expire": SUPABASE_SIGNED_URL_EXPIRE,
+                # NOTE: deliberately NO custom_domain here -- private URLs
+                # must keep going through the S3 endpoint so the SigV4
+                # querystring signature stays valid.
             },
         },
     }
