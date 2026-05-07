@@ -25,11 +25,10 @@ SECRET_KEY = config(
     default="django-insecure-x8n0o+1m$i4%_3%4be4ahat=5*i!@kei+qfzj7cwuea7$%pa6t",
 )
 DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS",
-    default="127.0.0.1,localhost",
-    cast=Csv(),
-)
+# WARNING: '*' disables Django's HTTP Host header validation (cache poisoning,
+# password-reset-link poisoning, etc.). Acceptable while bringing the Render
+# deploy up; tighten to the actual host as soon as the service is live.
+ALLOWED_HOSTS = ["*"]
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +63,10 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise must sit immediately after SecurityMiddleware: it serves
+    # collected static files in production (no nginx) with gzip/brotli +
+    # far-future cache headers. No-op in dev (Django still serves /static/).
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -305,6 +308,49 @@ else:
             "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Production hardening (Render / any reverse-proxied HTTPS deploy)
+#
+# These settings are only meaningful when DEBUG is False, so we gate them
+# explicitly to keep `runserver` behaviour identical to before.
+# ---------------------------------------------------------------------------
+if not DEBUG:
+    # WhiteNoise: gzip + brotli compression and content-hashed filenames for
+    # static assets (e.g. main.abc123.css). Buys far-future cache headers and
+    # ~80% bandwidth savings without an extra CDN. Requires `collectstatic`,
+    # which build.sh already runs.
+    STORAGES["staticfiles"][
+        "BACKEND"
+    ] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+    # Render terminates TLS at its load balancer and forwards HTTP to the
+    # service with X-Forwarded-Proto: https. Without this setting,
+    # request.is_secure() returns False even on HTTPS requests, which breaks
+    # secure-cookie flags and any code that branches on request.scheme.
+    # Safe on Render specifically because Render strips client-supplied
+    # X-Forwarded-* headers; do NOT enable behind a proxy that doesn't.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# CSRF trusted origins: Django 4+ rejects POSTs whose Origin header doesn't
+# match one of these. Without it, every login/signup/admin form on the
+# deployed site 403s with "CSRF verification failed -- Origin checking
+# failed against trusted origins".
+#
+# Two sources, merged:
+#   1. CSRF_TRUSTED_ORIGINS env var (comma-separated full URLs incl. scheme),
+#      for custom domains.
+#   2. RENDER_EXTERNAL_HOSTNAME, which Render injects automatically, so the
+#      default *.onrender.com URL works with zero config.
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="",
+    cast=Csv(),
+)
+_RENDER_HOSTNAME = config("RENDER_EXTERNAL_HOSTNAME", default="")
+if _RENDER_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_RENDER_HOSTNAME}")
 
 
 # ---------------------------------------------------------------------------
