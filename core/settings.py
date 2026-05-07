@@ -323,7 +323,7 @@ if not DEBUG:
     # which build.sh already runs.
     STORAGES["staticfiles"][
         "BACKEND"
-    ] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    ] = "whitenoise.storage.CompressedStaticFilesStorage"
 
     # Render terminates TLS at its load balancer and forwards HTTP to the
     # service with X-Forwarded-Proto: https. Without this setting,
