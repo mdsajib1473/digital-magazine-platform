@@ -458,3 +458,6 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success",
     },
 }
+
+
+WHITENOISE_MANIFEST_STRICT = False
