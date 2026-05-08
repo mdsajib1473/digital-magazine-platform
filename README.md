@@ -26,7 +26,14 @@ Administrators have full control over the archive through a modern, jazzmin-styl
 
 ## Tech Stack
 
-The project is built with Django 5.2 as the web framework, using PostgreSQL hosted on Supabase as the primary database. Media files are stored on Supabase S3-compatible storage with a dual-bucket architecture for security. The application is deployed on Render, a cloud platform that provides automatic HTTPS, managed PostgreSQL, and continuous deployment from the GitHub repository. The frontend uses Tailwind CSS for styling with a custom dark red and black color scheme that reflects the Unmad brand. WhiteNoise serves static files in production with gzip and brotli compression for optimal performance. Payment processing is handled through the SSLCommerz gateway with sandbox mode for development and live mode for production transactions.
+* **Backend Framework:** Django 5.2
+**Admin Interface:** Django Jazzmin
+* **Database:** PostgreSQL (hosted on Supabase)
+* **Cloud Storage:** Supabase S3-compatible storage (using a secure dual-bucket architecture for media files)
+* **Deployment:** Render (provides automatic HTTPS and continuous deployment from GitHub)
+* **Frontend Styling:** Tailwind CSS (custom dark red and black color scheme reflecting the Unmad brand)
+* **Static Files Management:** WhiteNoise (serves static files in production with gzip and brotli compression)
+* **Payment Integration:** SSLCommerz (configured with sandbox mode for development and live mode for production)
 
 
 ## Project Structure
