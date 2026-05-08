@@ -18,11 +18,11 @@ Administrators have full control over the archive through a modern, jazzmin-styl
 
 ## Screenshots
 
-![Homepage](screenshots/homepage.png)
+![Homepage](media/screenshots/Homepage.png)
 
-![PDF Reader](screenshots/pdf_reader.png)
+![PDF Reader](media/screenshots/pdf_reader.png)
 
-![Admin Panel](screenshots/admin_panel.png)
+![Admin Panel](media/screenshots/admin_panel.png)
 
 ## Tech Stack
 
