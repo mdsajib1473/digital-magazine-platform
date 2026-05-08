@@ -1,18 +1,17 @@
-/* Fix for standard select fields */
-.change-form select {
+.select2-container--default .select2-selection--single,
+.form-group select,
+.related-widget-wrapper select,
+span.select2-selection.select2-selection--single {
     border: 1px solid #ced4da !important;
     border-radius: 4px !important;
-    padding: 6px 12px !important;
-    background-color: white !important;
     min-height: 38px !important;
+    background-color: #fff !important;
 }
 
-/* Fix for Jazzmin Select2 dropdowns */
-.change-form .select2-container--default .select2-selection--single {
-    border: 1px solid #ced4da !important;
-    border-radius: 4px !important;
-    min-height: 38px !important;
-    display: flex !important;
-    align-items: center !important;
-    background-color: white !important;
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px !important;
 }

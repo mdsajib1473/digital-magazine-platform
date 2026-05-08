@@ -421,6 +421,8 @@ JAZZMIN_SETTINGS = {
     # Sensible defaults for change-form layout.
     "changeform_format": "horizontal_tabs",
     "related_modal_active": True,
+    # Custom CSS file for admin panel styling overrides.
+    "custom_css": "css/admin_custom.css",
 }
 
 # Visual tweaks (AdminLTE / Bootstrap classes -- separate from Tailwind).
