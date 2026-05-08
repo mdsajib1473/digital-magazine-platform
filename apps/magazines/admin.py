@@ -47,6 +47,11 @@ class IssueAdmin(admin.ModelAdmin):
         ),
     )
 
+    class Media:
+        css = {
+            "all": ("css/admin_custom.css",),
+        }
+
 
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):

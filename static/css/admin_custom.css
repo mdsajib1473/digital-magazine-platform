@@ -1,0 +1,7 @@
+/* Custom styles for Django Jazzmin admin panel select fields */
+.change-form select {
+    border: 1px solid #ced4da !important;
+    border-radius: 4px !important;
+    padding: 6px 12px !important;
+    background-color: white !important;
+}
