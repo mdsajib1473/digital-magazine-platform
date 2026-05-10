@@ -49,7 +49,7 @@ Develop a premium, highly secure digital archive for magazines. The core philoso
     - `transaction_id` (CharField, unique)
     - `purchased_at` (DateTimeField, auto_now_add=True)
 
-## 5. Development Rules for AI Agent (Windsurf)
+## 5. Development Rules for AI Agent
 - **Never alter the XOR Masking or `devicePixelRatio` logic in the reader** without explicit permission.
 - **Styling:** Always use Tailwind utility classes. Maintain the padding, gray/white contrast, and shadow aesthetic established in `_auth_card.html`.
 - **Forms:** Render Django forms manually using Tailwind classes rather than `{{ form.as_p }}` to ensure UI consistency.

@@ -14,6 +14,15 @@ Browse the complete archive of magazine issues organized chronologically. Each i
 
 Administrators have full control over the archive through a modern, jazzmin-styled Django admin panel. The admin interface allows creating, editing, and deleting magazine issues with cover image uploads and PDF file management. Purchase records are tracked with detailed information including payment status, transaction IDs, timestamps, and user associations. The admin can manage user accounts, view purchase history, and monitor transaction statuses. The SSLCommerz payment integration provides automated handling of successful, failed, and cancelled payment callbacks with hash validation for security.
 
+### Secure PDF Reader Engine
+
+The platform features a highly secure, anti-piracy PDF reading experience built entirely in-house:
+
+* **High-DPI Rendering:** Utilizes client-side Canvas rendering via `PDF.js` with 2.5x supersampling to ensure crisp and clear display of complex Bengali typography.
+* **Byte-XOR Masking (Anti-Piracy):** Protects premium content from automated downloaders (like IDM). The backend streams XOR-masked byte arrays which the JavaScript client securely fetches, reverses into an ArrayBuffer, and feeds directly into the PDF engine.
+* **Endpoint Sealing:** API endpoints strictly reject direct browser access or unauthorized requests. Hits without the specific client headers return a `403 Forbidden`, while anonymous attempts trigger a `302 Redirect` to the login portal.
+* **Content Protection:** The reader interface strictly disables context menus (right-click), text selection, and drag-and-drop functionalities to prevent casual content theft.
+
 ## Screenshots
 
 ![Homepage](screenshots/Homepage.png)
@@ -25,7 +34,7 @@ Administrators have full control over the archive through a modern, jazzmin-styl
 ## Tech Stack
 
 * **Backend Framework:** Django 5.2
-**Admin Interface:** Django Jazzmin
+* **Admin Interface:** Django Jazzmin
 * **Database:** PostgreSQL (hosted on Supabase)
 * **Cloud Storage:** Supabase S3-compatible storage (using a secure dual-bucket architecture for media files)
 * **Deployment:** Render (provides automatic HTTPS and continuous deployment from GitHub)
