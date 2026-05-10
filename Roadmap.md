@@ -1,4 +1,4 @@
-# Roadmap.md: Unmad BD
+# Roadmap.md: Digital Magazine Archive
 
 ## Phase 1: Auth Completion & User Profile (Current)
 *   **Password Reset Flow:** Django templates and logic for password recovery.
@@ -17,6 +17,6 @@
 
 ## Phase 4: Deployment & Go-Live (MVP Launch)
 *   **Hosting (Free):** Deploy the Django backend on **Render.com** (Free Web Service).
-*   **Domain (Free initially):** Start with the free Render subdomain (e.g., `unmad-bd.onrender.com`). Once revenue starts coming in, purchase a `.com` or `.com.bd` domain.
+*   **Domain (Free initially):** Start with the free Render subdomain (e.g., `your-app.onrender.com`). Once revenue starts coming in, purchase a `.com` or `.com.bd` domain.
 *   **Live Payment:** Switch SSLCommerz from Sandbox to Live mode.
 *   **Final Testing & Launch:** Complete a real transaction, verify the secure reader, and share the platform with the first users!

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Reading: {{ issue.title }} &middot; Unmad Digital Archive{% endblock %}
+{% block title %}Reading: {{ issue.title }} &middot; Digital Magazine Archive{% endblock %}
 
 {% comment %}
 ================================================================================
@@ -31,7 +31,7 @@ ANTI-PIRACY NOTE:
 {% block content %}
 
 <div
-    id="unmad-reader-root"
+    id="magazine-reader-root"
     class="select-none"
     oncontextmenu="return false;"
     ondragstart="return false;"
@@ -144,7 +144,7 @@ one). This is a minimal canvas-only renderer with our own chrome.
     var ZOOM_STEP = 0.25, ZOOM_MIN = 0.5, ZOOM_MAX = 3.0;
 
     // -- DOM handles -------------------------------------------------------
-    var root         = document.getElementById('unmad-reader-root');
+    var root         = document.getElementById('magazine-reader-root');
     var statusEl     = document.getElementById('pdf-status');
     var statusTextEl = document.getElementById('pdf-status-text');
     var errorEl      = document.getElementById('pdf-error');
@@ -204,7 +204,7 @@ one). This is a minimal canvas-only renderer with our own chrome.
         })
         .then(onDocumentLoaded)
         .catch(function (err) {
-            console.error('[unmad-reader] PDF load failed:', err);
+            console.error('[magazine-reader] PDF load failed:', err);
             showError();
         });
 
@@ -330,7 +330,7 @@ one). This is a minimal canvas-only renderer with our own chrome.
             var num = parseInt(entry.target.dataset.pageNum, 10);
             if (!renderedPages.has(num)) {
                 renderPage(num).catch(function (err) {
-                    console.warn('[unmad-reader] Page ' + num + ' render failed:', err);
+                    console.warn('[magazine-reader] Page ' + num + ' render failed:', err);
                 });
             }
         });

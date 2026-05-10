@@ -1,16 +1,14 @@
-# Unmad Digital Archive
-
-**Live Demo:** [https://unmad-bd.onrender.com](https://unmad-bd.onrender.com)
+# Digital Magazine Archive
 
 ## Project Overview
 
-The Unmad Digital Archive is a web application that preserves and makes accessible decades of the beloved Bangladeshi comic magazine "Unmad." This project transforms physical issues into a browsable, searchable digital library, allowing readers to explore the rich history of Bangladeshi satire and cartoon art from anywhere in the world. Each issue is carefully digitized, catalogued, and presented in a reader-friendly interface that honors the original magazine's aesthetic while leveraging modern web technologies for accessibility and performance.
+Digital Magazine Archive is a generic, Django-based web application template for creating digital magazine archives. This platform transforms physical issues into a browsable, searchable digital library, allowing readers to explore magazine content from anywhere in the world. Each issue is catalogued and presented in a reader-friendly interface that leverages modern web technologies for accessibility and performance. This template can be customized for any magazine publication or digital archive project.
 
 ## Features
 
 ### User-Facing Features
 
-Browse the complete archive of Unmad magazine issues organized chronologically. Each issue entry displays a high-quality cover image, publication date, and title. Users can access issues marked as "Free" without any barriers, while premium issues require a one-time purchase through the integrated payment gateway. The PDF reader offers a clean, distraction-free reading experience with page navigation controls. Users can create accounts to track their purchased issues in a personal library, manage their profile, and reset passwords via email. The responsive design ensures seamless access across desktop, tablet, and mobile devices.
+Browse the complete archive of magazine issues organized chronologically. Each issue entry displays a high-quality cover image, publication date, and title. Users can access issues marked as "Free" without any barriers, while premium issues require a one-time purchase through the integrated payment gateway. The PDF reader offers a clean, distraction-free reading experience with page navigation controls. Users can create accounts to track their purchased issues in a personal library, manage their profile, and reset passwords via email. The responsive design ensures seamless access across desktop, tablet, and mobile devices.
 
 ### Admin Features
 
@@ -31,7 +29,7 @@ Administrators have full control over the archive through a modern, jazzmin-styl
 * **Database:** PostgreSQL (hosted on Supabase)
 * **Cloud Storage:** Supabase S3-compatible storage (using a secure dual-bucket architecture for media files)
 * **Deployment:** Render (provides automatic HTTPS and continuous deployment from GitHub)
-* **Frontend Styling:** Tailwind CSS (custom dark red and black color scheme reflecting the Unmad brand)
+* **Frontend Styling:** Tailwind CSS (custom dark red and black color scheme)
 * **Static Files Management:** WhiteNoise (serves static files in production with gzip and brotli compression)
 * **Payment Integration:** SSLCommerz (configured with sandbox mode for development and live mode for production)
 
@@ -62,8 +60,8 @@ Python 3.11 or higher, Node.js and npm for Tailwind CSS compilation, and Git for
 Clone the project from GitHub and navigate into the directory:
 
 ```bash
-git clone https://github.com/mdsajib1473/Unmad_magazine-website.git
-cd Unmad_magazine-website
+git clone https://github.com/your-username/digital-magazine-archive.git
+cd digital-magazine-archive
 ```
 
 ### Step 2: Create a Virtual Environment
@@ -108,8 +106,8 @@ SUPABASE_S3_ENDPOINT_URL=https://your-project-ref.storage.supabase.co/storage/v1
 SUPABASE_S3_REGION=ap-southeast-1
 SUPABASE_S3_ACCESS_KEY_ID=your-access-key
 SUPABASE_S3_SECRET_ACCESS_KEY=your-secret-key
-SUPABASE_PUBLIC_BUCKET=unmad-archive
-SUPABASE_PRIVATE_BUCKET=unmad-archive-pdfs
+SUPABASE_PUBLIC_BUCKET=magazine-archive
+SUPABASE_PRIVATE_BUCKET=magazine-archive-pdfs
 SUPABASE_SIGNED_URL_EXPIRE=3600
 
 # SSLCommerz Payment Gateway

@@ -1,7 +1,7 @@
-# Agent.md: Project Specification - Unmad BD
+# Agent.md: Project Specification - Digital Magazine Archive
 
 ## 1. Project Goal & Philosophy
-Develop a premium, highly secure digital archive for "Unmad Magazine". The core philosophy is to provide a physical-magazine-like reading experience in the browser while strictly preventing piracy (PDF downloading) using advanced evasion techniques against download managers like IDM.
+Develop a premium, highly secure digital archive for magazines. The core philosophy is to provide a physical-magazine-like reading experience in the browser while strictly preventing piracy (PDF downloading) using advanced evasion techniques against download managers like IDM.
 
 ## 2. Tech Stack & Infrastructure
 - **Backend:** Django 5.x (Python)

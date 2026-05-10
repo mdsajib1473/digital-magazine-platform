@@ -4,7 +4,7 @@ from django.db import models
 
 class CustomUser(AbstractUser):
     """
-    Custom user model for the Unmad Digital Archive.
+    Custom user model for the Digital Magazine Archive.
 
     Extends Django's AbstractUser so we keep the default username,
     email, and password handling while adding archive-specific fields.

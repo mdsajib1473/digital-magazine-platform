@@ -1,4 +1,4 @@
-"""Auth forms for the Unmad Digital Archive."""
+"""Auth forms for the Digital Magazine Archive."""
 
 from django import forms
 from django.contrib.auth.forms import (

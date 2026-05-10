@@ -1,4 +1,4 @@
-"""URL configuration for the Unmad Digital Archive (core project)."""
+"""URL configuration for the Digital Magazine Archive (core project)."""
 
 from django.conf import settings
 from django.conf.urls.static import static

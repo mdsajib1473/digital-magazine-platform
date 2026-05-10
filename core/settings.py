@@ -1,5 +1,5 @@
 """
-Django settings for the Unmad Digital Archive (core project).
+Django settings for the Digital Magazine Archive (core project).
 
 For more information on this file, see
 https://docs.djangoproject.com/en/5.2/topics/settings/
@@ -166,7 +166,7 @@ EMAIL_BACKEND = config(
 )
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
-    default="Unmad Archive <no-reply@unmadbd.com>",
+    default="MagazineZone Archive <no-reply@magazinezone.com>",
 )
 
 
@@ -223,9 +223,11 @@ if USE_SUPABASE_STORAGE:
     SUPABASE_S3_REGION = config("SUPABASE_S3_REGION", default="ap-southeast-1")
     SUPABASE_S3_ACCESS_KEY_ID = config("SUPABASE_S3_ACCESS_KEY_ID")
     SUPABASE_S3_SECRET_ACCESS_KEY = config("SUPABASE_S3_SECRET_ACCESS_KEY")
-    SUPABASE_PUBLIC_BUCKET = config("SUPABASE_PUBLIC_BUCKET", default="unmad-archive")
+    SUPABASE_PUBLIC_BUCKET = config(
+        "SUPABASE_PUBLIC_BUCKET", default="magazine-archive"
+    )
     SUPABASE_PRIVATE_BUCKET = config(
-        "SUPABASE_PRIVATE_BUCKET", default="unmad-archive-pdfs"
+        "SUPABASE_PRIVATE_BUCKET", default="magazine-archive-pdfs"
     )
     SUPABASE_SIGNED_URL_EXPIRE = config(
         "SUPABASE_SIGNED_URL_EXPIRE", default=3600, cast=int
@@ -377,12 +379,11 @@ NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
 # ---------------------------------------------------------------------------
 JAZZMIN_SETTINGS = {
     # Branding shown across admin pages.
-    "site_title": "Unmad Admin",
-    "site_header": "Unmad Archive",
-    "site_brand": "Unmad",
-    "site_logo_classes": "img-circle",
-    "welcome_sign": "Welcome to the Unmad Digital Archive admin",
-    "copyright": "Unmad Digital Archive",
+    "site_title": "MagazineZone Admin",
+    "site_header": "MagazineZone Archive",
+    "site_brand": "MagazineZone",
+    "welcome_sign": "Welcome to the Digital Magazine Archive admin",
+    "copyright": "Digital Magazine Archive",
     # Global search bar at the top of the admin -- queries these models.
     "search_model": ["magazines.Issue", "accounts.CustomUser"],
     # Sidebar layout.

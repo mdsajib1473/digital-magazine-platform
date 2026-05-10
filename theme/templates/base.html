@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Unmad Digital Archive{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}Digital archive of Unmad Magazine — browse and read every issue.{% endblock %}">
+    <title>{% block title %}Digital Magazine Archive{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Digital archive of MagazineZone — browse and read every issue.{% endblock %}">
     {% tailwind_css %}
     {% block extra_head %}{% endblock %}
 </head>
@@ -14,7 +14,7 @@
     <header class="bg-white border-b border-slate-200">
         <nav class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
             <a href="{% url 'home' %}" class="text-xl font-semibold tracking-tight text-slate-900 hover:text-indigo-600 transition-colors">
-                Unmad <span class="text-indigo-600">Archive</span>
+                MagazineZone <span class="text-indigo-600">Archive</span>
             </a>
             <div class="flex items-center gap-4 text-sm">
                 {% if user.is_authenticated %}
@@ -59,7 +59,7 @@
 
     <footer class="bg-white border-t border-slate-200 py-6">
         <div class="max-w-6xl mx-auto px-4 text-center text-sm text-slate-500">
-            &copy; {% now "Y" %} Unmad Digital Archive &mdash; built with Django &amp; Tailwind.
+            &copy; {% now "Y" %} Digital Magazine Archive &mdash; built with Django &amp; Tailwind.
         </div>
     </footer>
 
