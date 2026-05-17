@@ -4,6 +4,8 @@
 
 Digital Magazine Archive is a generic, Django-based web application template for creating digital magazine archives. This platform transforms physical issues into a browsable, searchable digital library, allowing readers to explore magazine content from anywhere in the world. Each issue is catalogued and presented in a reader-friendly interface that leverages modern web technologies for accessibility and performance. This template can be customized for any magazine publication or digital archive project.
 
+## Live Website: https://magazine-zone-bd.onrender.com
+
 ## Features
 
 ### User-Facing Features
