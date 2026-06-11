@@ -14,10 +14,10 @@ from .models import CustomUser
 # Single source of truth for input styling. Keeps every auth field consistent
 # with the issue card / search bar look-and-feel from Phase 4a.
 INPUT_CLASSES = (
-    "block w-full px-4 py-2.5 text-sm bg-white border border-slate-300 "
-    "rounded-md shadow-sm placeholder-slate-400 "
-    "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 "
-    "transition"
+    "block w-full px-4 py-3 text-sm bg-[var(--surface-2)] border border-[var(--border)] "
+    "rounded-xl placeholder-[var(--text-3)] "
+    "focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 "
+    "focus:border-[var(--brand)] focus:bg-white transition-all"
 )
 
 

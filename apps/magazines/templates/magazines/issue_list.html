@@ -9,58 +9,65 @@
 {# ----------------------------------------------------------------------- #}
 {# Hero / search                                                           #}
 {# ----------------------------------------------------------------------- #}
-<section class="text-center py-10 sm:py-14">
-    <p class="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-widest text-red-700 bg-red-100 rounded-full">
-        Digital Archive
-    </p>
-    <h1 class="mt-5 text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
-        The complete <span class="text-[#bc1d23]">MagazineZone</span> collection
-    </h1>
-    <p class="mt-4 max-w-2xl mx-auto text-base sm:text-lg text-slate-600">
-        Decades of satire, comics, and culture from Bangladesh's most beloved magazine —
-        free to browse, paid to read.
-    </p>
+<section class="relative overflow-hidden rounded-2xl mb-10 bg-gradient-to-br from-[var(--brand)] via-[#c9282e] to-[#8b0e13] text-white px-6 sm:px-10 py-12 sm:py-16">
+    {# dotted background decoration #}
+    <div class="absolute inset-0 opacity-10 pointer-events-none"
+         style="background-image: radial-gradient(circle at 70% 50%, white 1px, transparent 1px); background-size: 32px 32px;"></div>
 
-    <form method="get" action="{% url 'home' %}" class="mt-8 max-w-2xl mx-auto" role="search">
-        <label for="search" class="sr-only">Search issues</label>
-        <div class="relative">
-            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true">
-                {# magnifier icon #}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.85 5.85a7.5 7.5 0 0010.8 10.8z" />
-                </svg>
-            </span>
-            <input
-                id="search"
-                type="search"
-                name="q"
-                value="{{ search_query }}"
-                placeholder="Search by title or description…"
-                autocomplete="off"
-                class="w-full pl-12 pr-28 py-3 text-base bg-white border border-slate-200 rounded-full shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#bc1d23] focus:border-transparent transition"
-            >
-            <button
-                type="submit"
-                class="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2 text-sm font-semibold text-white bg-[#bc1d23] rounded-full hover:bg-[#a3161b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#bc1d23] transition"
-            >
-                Search
-            </button>
-        </div>
-    </form>
+    <div class="relative max-w-2xl">
+        <p class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold uppercase tracking-widest mb-5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Digital Archive
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl font-extrabold leading-tight mb-4">
+            The complete <span class="underline decoration-white/30 decoration-4 underline-offset-4">MagazineZone</span> collection
+        </h1>
+        <p class="text-white/75 text-base sm:text-lg mb-8 leading-relaxed max-w-lg">
+            Decades of satire, comics, and culture from Bangladesh's most beloved magazine —
+            free to browse, paid to read.
+        </p>
+
+        <form method="get" action="{% url 'home' %}" class="max-w-xl" role="search">
+            <label for="search" class="sr-only">Search issues</label>
+            <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-3)] pointer-events-none" aria-hidden="true">
+                    {# magnifier icon #}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.85 5.85a7.5 7.5 0 0010.8 10.8z" />
+                    </svg>
+                </span>
+                <input
+                    id="search"
+                    type="search"
+                    name="q"
+                    value="{{ search_query }}"
+                    placeholder="Search by title or description…"
+                    autocomplete="off"
+                    class="w-full pl-12 pr-28 py-3.5 text-base bg-white text-[var(--text-1)] border-0 rounded-xl shadow-lg placeholder-[var(--text-3)] focus:outline-none focus:ring-2 focus:ring-white/60 transition-all"
+                >
+                <button
+                    type="submit"
+                    class="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--brand)] rounded-lg hover:bg-[var(--brand-dark)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--brand)] transition-all active:scale-95"
+                >
+                    Search
+                </button>
+            </div>
+        </form>
+    </div>
 </section>
 
 {# ----------------------------------------------------------------------- #}
 {# Section heading + result count                                          #}
 {# ----------------------------------------------------------------------- #}
-<div class="flex items-end justify-between mb-6 border-b border-slate-200 pb-3">
-    <h2 class="text-xl font-semibold text-slate-900">
+<div class="flex items-end justify-between mb-6 border-b border-[var(--border)] pb-3">
+    <h2 class="font-display text-xl sm:text-2xl font-bold text-[var(--text-1)]">
         {% if search_query %}
             Results for &ldquo;{{ search_query }}&rdquo;
         {% else %}
             Latest issues
         {% endif %}
     </h2>
-    <p class="text-sm text-slate-500">
+    <p class="text-sm text-[var(--text-3)]">
         {{ paginator.count }} issue{{ paginator.count|pluralize }}
     </p>
 </div>
@@ -71,43 +78,36 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     {% for issue in issues %}
         <a href="{{ issue.get_absolute_url }}"
-           class="group flex flex-col bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200">
+           class="group flex flex-col bg-[var(--surface-1)] rounded-2xl overflow-hidden border border-[var(--border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:ring-offset-2 transition-all duration-300">
         <article class="contents">
 
             {# Cover #}
-            <div class="aspect-3/4 bg-slate-100 overflow-hidden relative">
+            <div class="aspect-3/4 bg-[var(--surface-3)] overflow-hidden relative">
                 {% if issue.cover_image %}
                     <img
                         src="{{ issue.cover_image.url }}"
                         alt="Cover of {{ issue.title }} #{{ issue.issue_number }}"
                         loading="lazy"
-                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     >
                 {% else %}
-                    <div class="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                    <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-[var(--text-3)]">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                         </svg>
-                        <span class="mt-2 text-xs uppercase tracking-wide">No cover</span>
+                        <span class="text-xs uppercase tracking-wide">No cover</span>
                     </div>
                 {% endif %}
 
-                {% comment %}
-                Free / price badge - top-right. Solid white pill keeps the
-                text readable over the cover image; the LABEL TEXT itself
-                uses a blue->cyan gradient via bg-clip-text for a subtle
-                accent. The dot indicator on the Free pill matches the
-                gradient.
-                {% endcomment %}
+                {# Free / price badge - top-right #}
                 <div class="absolute top-3 right-3">
                     {% if issue.is_free %}
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/95 ring-1 ring-blue-200 shadow-sm">
-                            <span class="w-1.5 h-1.5 rounded-full bg-linear-to-r from-blue-500 to-cyan-500"></span>
-                            <span class="bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">Free</span>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500 text-white shadow-sm">
+                            Free
                         </span>
                     {% else %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/95 ring-1 ring-blue-200 shadow-sm">
-                            <span class="bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">৳{{ issue.price }} BDT</span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 backdrop-blur text-[var(--text-1)] shadow-sm">
+                            ৳{{ issue.price }} BDT
                         </span>
                     {% endif %}
                 </div>
@@ -115,40 +115,33 @@
 
             {# Body #}
             <div class="flex flex-col flex-1 p-4">
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-[#bc1d23]">
+                <span class="inline-block self-start px-2 py-0.5 rounded-md bg-[var(--brand-muted)] text-[var(--brand)] text-[11px] font-semibold uppercase tracking-wider">
                     {{ issue.category.name }}
-                </p>
-                <h3 class="mt-1 text-base font-semibold text-slate-900 line-clamp-2">
+                </span>
+                <h3 class="font-display mt-2 text-base font-bold text-[var(--text-1)] leading-snug line-clamp-2">
                     {{ issue.title }}
                 </h3>
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="mt-1 text-xs text-[var(--text-3)]">
                     Issue #{{ issue.issue_number }} &middot; {{ issue.published_date|date:"M Y" }}
                 </p>
                 {% if issue.description %}
-                    <p class="mt-3 text-sm text-slate-600 line-clamp-2">
+                    <p class="mt-3 text-sm text-[var(--text-2)] line-clamp-2">
                         {{ issue.description }}
                     </p>
                 {% endif %}
 
                 {# CTA - whole card is the link, this is just visual cue #}
-                <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span class="text-xs text-slate-400">
+                <div class="mt-4 pt-4 flex items-center justify-between border-t border-[var(--border)]">
+                    <span class="text-xs text-[var(--text-3)]">
                         {% if issue.is_free %}
                             Read free
                         {% else %}
                             Pay-per-issue
                         {% endif %}
                     </span>
-                    {% comment %}
-                    'Open ->' link: gradient text on the word + matching
-                    solid blue arrow. The arrow can't share the gradient
-                    (bg-clip-text + text-transparent would hide an SVG
-                    that paints via stroke=currentColor), so we color it
-                    text-blue-500 to anchor the gradient's start hue.
-                    {% endcomment %}
-                    <span class="text-sm font-medium inline-flex items-center gap-1">
-                        <span class="bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">Open</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-blue-500 transition-transform group-hover:translate-x-0.5">
+                    <span class="text-sm font-semibold text-[var(--brand)] inline-flex items-center gap-1">
+                        Open
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 transition-transform group-hover:translate-x-0.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
                         </svg>
                     </span>
@@ -160,21 +153,23 @@
         {# ----------------------------------------------------------------- #}
         {# Empty state                                                       #}
         {# ----------------------------------------------------------------- #}
-        <div class="col-span-full py-16 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="mx-auto w-14 h-14 text-slate-300">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-            </svg>
-            <h3 class="mt-4 text-lg font-semibold text-slate-900">
+        <div class="col-span-full flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-[var(--surface-3)] flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-[var(--text-3)]">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-bold text-[var(--text-1)]">
                 {% if search_query %}No matching issues{% else %}No issues yet{% endif %}
             </h3>
-            <p class="mt-1 text-sm text-slate-500">
+            <p class="mt-1 text-sm text-[var(--text-3)] max-w-sm">
                 {% if search_query %}
-                    We couldn't find anything for &ldquo;<span class="font-medium text-slate-700">{{ search_query }}</span>&rdquo;.
-                    <a href="{% url 'home' %}" class="text-indigo-600 hover:text-indigo-500 font-medium">Clear search</a>.
+                    We couldn't find anything for &ldquo;<span class="font-medium text-[var(--text-2)]">{{ search_query }}</span>&rdquo;.
+                    <a href="{% url 'home' %}" class="text-[var(--brand)] hover:text-[var(--brand-dark)] font-medium">Clear search</a>.
                 {% else %}
                     Issues will appear here once an admin uploads them.
                     {% if user.is_staff %}
-                        <a href="{% url 'admin:magazines_issue_add' %}" class="text-indigo-600 hover:text-indigo-500 font-medium">Add the first issue</a>.
+                        <a href="{% url 'admin:magazines_issue_add' %}" class="text-[var(--brand)] hover:text-[var(--brand-dark)] font-medium">Add the first issue</a>.
                     {% endif %}
                 {% endif %}
             </p>
@@ -189,27 +184,27 @@
     <nav class="mt-10 flex items-center justify-center gap-2" aria-label="Pagination">
         {% if page_obj.has_previous %}
             <a href="?{% if search_query %}q={{ search_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
-               class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition">
+               class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[var(--text-2)] bg-white border border-[var(--border)] rounded-xl hover:border-[var(--brand)]/40 hover:text-[var(--brand)] transition-all">
                 &larr; Previous
             </a>
         {% else %}
-            <span class="px-4 py-2 text-sm font-medium text-slate-400 bg-slate-50 border border-slate-200 rounded-md cursor-not-allowed">
+            <span class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[var(--text-3)] bg-[var(--surface-3)] border border-[var(--border)] rounded-xl cursor-not-allowed">
                 &larr; Previous
             </span>
         {% endif %}
 
-        <span class="px-4 py-2 text-sm text-slate-600">
-            Page <span class="font-semibold text-slate-900">{{ page_obj.number }}</span>
+        <span class="px-4 py-2 text-sm text-[var(--text-2)]">
+            Page <span class="font-semibold text-[var(--text-1)]">{{ page_obj.number }}</span>
             of {{ paginator.num_pages }}
         </span>
 
         {% if page_obj.has_next %}
             <a href="?{% if search_query %}q={{ search_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
-               class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition">
+               class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[var(--brand)] rounded-xl hover:bg-[var(--brand-dark)] shadow-[var(--shadow-brand)] transition-all">
                 Next &rarr;
             </a>
         {% else %}
-            <span class="px-4 py-2 text-sm font-medium text-slate-400 bg-slate-50 border border-slate-200 rounded-md cursor-not-allowed">
+            <span class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[var(--text-3)] bg-[var(--surface-3)] border border-[var(--border)] rounded-xl cursor-not-allowed">
                 Next &rarr;
             </span>
         {% endif %}

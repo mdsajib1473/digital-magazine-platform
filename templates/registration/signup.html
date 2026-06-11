@@ -10,7 +10,7 @@
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-            <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
                 {% for error in form.non_field_errors %}
                     <p>{{ error }}</p>
                 {% endfor %}
@@ -24,11 +24,11 @@
         {% include "registration/_form_field.html" with field=form.password2 %}
 
         <button type="submit"
-                class="w-full mt-2 inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">
+                class="w-full mt-2 inline-flex items-center justify-center rounded-xl bg-[var(--brand)] px-6 py-3 text-sm font-semibold text-white shadow-[var(--shadow-brand)] hover:bg-[var(--brand-dark)] hover:shadow-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--brand)] transition-all active:scale-[0.98]">
             Create account
         </button>
 
-        <p class="mt-4 text-xs text-slate-500 text-center">
+        <p class="mt-4 text-xs text-[var(--text-3)] text-center">
             By signing up you agree to be a delightful human.
         </p>
     </form>
@@ -36,7 +36,7 @@
 
 {% block auth_alt_action %}
     Already have an account?
-    <a href="{% url 'login' %}" class="font-semibold text-indigo-600 hover:text-indigo-500">
+    <a href="{% url 'login' %}" class="font-semibold text-[var(--brand)] hover:text-[var(--brand-dark)] transition-colors">
         Sign in
     </a>
 {% endblock %}

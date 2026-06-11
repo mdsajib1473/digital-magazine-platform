@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% comment %}
-Shared card scaffold for login + signup pages.
+Shared card scaffold for login + signup + password reset/change pages.
 
 Children must provide these blocks:
   - auth_title          : main heading text
@@ -10,26 +10,46 @@ Children must provide these blocks:
 {% endcomment %}
 
 {% block content %}
-<div class="min-h-[60vh] flex items-center justify-center py-10">
-    <div class="w-full max-w-md">
+<div class="min-h-[calc(100vh-12rem)] flex rounded-2xl overflow-hidden border border-[var(--border)] shadow-[var(--shadow-lg)] bg-[var(--surface-1)]">
 
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 sm:p-10">
+    {# Decorative brand panel (hidden on mobile) #}
+    <div class="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-[var(--brand)] via-[#c9282e] to-[#8b0e13] flex-col items-center justify-center p-12 text-white relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10 pointer-events-none"
+             style="background-image: radial-gradient(circle at 30% 60%, white 1px, transparent 1px); background-size: 28px 28px;"></div>
+        <div class="relative text-center">
+            <div class="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 3a1 1 0 011 1v8a1 1 0 11-2 0V7a1 1 0 011-1zm-4 3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm8 2a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1z"/>
+                </svg>
+            </div>
+            <h2 class="font-display text-3xl font-extrabold mb-3">
+                Welcome to MagazineZone
+            </h2>
+            <p class="text-white/70 text-sm leading-relaxed max-w-xs mx-auto">
+                Your gateway to the complete digital archive — decades of satire, comics, and culture.
+            </p>
+        </div>
+    </div>
+
+    {# Form panel #}
+    <div class="flex-1 flex items-center justify-center p-6 sm:p-10">
+        <div class="w-full max-w-md">
             <div class="text-center mb-7">
-                <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+                <h1 class="text-2xl font-bold tracking-tight text-[var(--text-1)]">
                     {% block auth_title %}{% endblock %}
                 </h1>
-                <p class="mt-2 text-sm text-slate-500">
+                <p class="mt-2 text-sm text-[var(--text-3)]">
                     {% block auth_subtitle %}{% endblock %}
                 </p>
             </div>
 
             {% block auth_form %}{% endblock %}
+
+            <p class="mt-6 pt-6 border-t border-[var(--border)] text-center text-sm text-[var(--text-2)]">
+                {% block auth_alt_action %}{% endblock %}
+            </p>
         </div>
-
-        <p class="mt-6 text-center text-sm text-slate-600">
-            {% block auth_alt_action %}{% endblock %}
-        </p>
-
     </div>
+
 </div>
 {% endblock %}

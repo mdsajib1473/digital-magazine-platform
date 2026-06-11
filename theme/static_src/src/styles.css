@@ -8,3 +8,79 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+/* ---------------------------------------------------------------------------
+   Design tokens — single source of truth for the brand palette, neutral ramp,
+   radii and shadows. Templates reference these via arbitrary-value utilities
+   like bg-[var(--brand)] so a rebrand only requires editing this block.
+--------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --brand:        #bc1d23;
+    --brand-dark:   #9b1118;
+    --brand-light:  #f9e5e6;
+    --brand-muted:  rgba(188, 29, 35, 0.08);
+
+    /* Neutral ramp */
+    --surface-1: #ffffff;
+    --surface-2: #f8f9fb;
+    --surface-3: #f1f3f6;
+    --border:    #e4e7ec;
+    --text-1:    #0f172a;   /* headings */
+    --text-2:    #475569;   /* body */
+    --text-3:    #94a3b8;   /* muted / placeholders */
+
+    /* Radius scale */
+    --radius-sm:  6px;
+    --radius-md:  12px;
+    --radius-lg:  20px;
+    --radius-xl:  28px;
+
+    /* Shadow scale */
+    --shadow-sm:  0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+    --shadow-md:  0 4px 16px rgba(15,23,42,.08), 0 1px 4px rgba(15,23,42,.04);
+    --shadow-lg:  0 12px 40px rgba(15,23,42,.12), 0 4px 12px rgba(15,23,42,.06);
+    --shadow-brand: 0 4px 20px rgba(188,29,35,.25);
+  }
+
+  html {
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+/* Display serif for magazine titles, hero text and section headings. */
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Animations
+--------------------------------------------------------------------------- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease both;
+}
+.skeleton {
+  background: linear-gradient(90deg, #f1f3f6 25%, #e4e7ec 50%, #f1f3f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Alpine.js: hide x-cloak'd elements until Alpine initializes to avoid
+   a flash of un-initialized dropdowns/menus on page load. */
+[x-cloak] {
+  display: none !important;
+}
