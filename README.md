@@ -1,10 +1,25 @@
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
+![Django](https://img.shields.io/badge/Django-5.2-092E20?style=flat-square&logo=django&logoColor=white)
+![Jazzmin](https://img.shields.io/badge/Admin-Django%20Jazzmin-FF6B6B?style=flat-square)
+![Postgres](https://img.shields.io/badge/Database-Supabase%20Postgres-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Storage](https://img.shields.io/badge/Storage-Supabase%20S3-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![SSLCommerz](https://img.shields.io/badge/Payments-SSLCommerz-00558C?style=flat-square)
+![Deployment](https://img.shields.io/badge/Deploy-Render-46E3B7?style=flat-square&logo=render&logoColor=white)
+![PDF.js](https://img.shields.io/badge/Reader-PDF.js-F40F02?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Live-success?style=flat-square)
+
 # Digital Magazine Archive
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-magazine--zone--bd.onrender.com-A30000?style=for-the-badge)](https://magazine-zone-bd.onrender.com)
 
 ## Project Overview
 
 Digital Magazine Archive is a generic, Django-based web application template for creating digital magazine archives. This platform transforms physical issues into a browsable, searchable digital library, allowing readers to explore magazine content from anywhere in the world. Each issue is catalogued and presented in a reader-friendly interface that leverages modern web technologies for accessibility and performance. This template can be customized for any magazine publication or digital archive project.
 
-## Live Website: https://magazine-zone-bd.onrender.com
+## Live Website
+
+https://magazine-zone-bd.onrender.com
 
 ## Features
 
@@ -29,6 +44,8 @@ The platform features a highly secure, anti-piracy PDF reading experience built 
 
 ![Homepage](screenshots/Homepage.png)
 
+![Homepage](screenshots/issue.png)
+
 ![PDF Reader](screenshots/pdf_reader.png)
 
 ![Admin Panel](screenshots/admin_panel.png)
@@ -44,8 +61,8 @@ The platform features a highly secure, anti-piracy PDF reading experience built 
 * **Static Files Management:** WhiteNoise (serves static files in production with gzip and brotli compression)
 * **Payment Integration:** SSLCommerz (configured with sandbox mode for development and live mode for production)
 
-
 ## Project Structure
+
 A brief overview of the core directory structure:
 
 * `apps/` : Contains all Django applications (e.g., magazines, users, payments).
@@ -71,7 +88,7 @@ Python 3.11 or higher, Node.js and npm for Tailwind CSS compilation, and Git for
 Clone the project from GitHub and navigate into the directory:
 
 ```bash
-git clone https://github.com/your-username/digital-magazine-archive.git
+git clone https://github.com/mdsajib1473/digital-magazine-archive.git
 cd digital-magazine-archive
 ```
 
