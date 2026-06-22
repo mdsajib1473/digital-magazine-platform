@@ -8,6 +8,7 @@
 ![Deployment](https://img.shields.io/badge/Deploy-Render-46E3B7?style=flat-square&logo=render&logoColor=white)
 ![PDF.js](https://img.shields.io/badge/Reader-PDF.js-F40F02?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Live-success?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 # Digital Magazine Archive
 
