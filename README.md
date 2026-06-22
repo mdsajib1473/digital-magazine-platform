@@ -191,3 +191,6 @@ python manage.py loaddata dump.json
 ```
 
 This will populate the database with existing issues, users, and purchase records.
+
+## Licence
+The source code is publicly available at github.com/mdsajib1473/AI-Symtom-Journal-Specification under the MIT License.
